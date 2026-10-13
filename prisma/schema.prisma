@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String?
+  avatarUrl     String?
+  balance       Float          @default(100000.0) // Paper trading simulated balance
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  watchlists    Watchlist[]
+  tradeJournals TradeJournal[]
+
+  @@map("users")
+}
+
+model Watchlist {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol     String   // e.g. 'BTC/USD', 'EUR/USD'
+  name       String   // e.g. 'Bitcoin', 'Euro / US Dollar'
+  type       String   // 'crypto' | 'forex' | 'commodities'
+  notes      String?
+  alertPrice Float?   @map("alert_price")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, symbol])
+  @@map("watchlists")
+}
+
+model TradeJournal {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol          String    // e.g. 'BTC/USD', 'EUR/USD'
+  type            String    @default("crypto") // 'crypto' | 'forex' | 'commodities'
+  direction       String    // 'LONG' | 'SHORT'
+  entryPrice      Float     @map("entry_price")
+  exitPrice       Float?    @map("exit_price")
+  stopLoss        Float     @map("stop_loss")
+  takeProfit      Float     @map("take_profit")
+  positionSize    Float     @map("position_size") // in USD
+  quantity        Float?    // units or lots
+  pnl             Float?    // Profit & Loss in USD
+  pnlPercentage   Float?    @map("pnl_percentage") // P&L in %
+  status          String    @default("OPEN") // 'OPEN' | 'CLOSED' | 'CANCELLED'
+  outcome         String?   // 'WIN' | 'LOSS' | 'BREAKEVEN'
+  riskRewardRatio Float?    @map("risk_reward_ratio")
+  timeframe       String?   @default("1h")
+  aiSignalUsed    Boolean   @default(false) @map("ai_signal_used")
+  aiConfidence    Float?    @map("ai_confidence")
+  strategy        String?   // e.g. 'Wyckoff Spring', 'RSI Divergence', 'Breakout'
+  notes           String?   // User notes & psychological reflection
+  tags            String[]  @default([])
+  closedAt        DateTime? @map("closed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("trade_journals")
+}
