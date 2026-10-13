@@ -172,38 +172,33 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
   return (
     <aside className="w-full lg:w-80 xl:w-96 h-full bg-[#090D18] border-l border-slate-800/80 flex flex-col overflow-y-auto lg:overflow-hidden text-xs pb-16 lg:pb-0">
       {/* Top Header & Tab Switcher */}
-      <div className="p-3 bg-[#0B0F1C] border-b border-slate-800/80 flex flex-col gap-2.5">
+      <div className="p-3 bg-[#0B0F1C] border-b border-slate-800/80 flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-200">
-            <Sparkles className="w-4 h-4 text-[#00F0FF] animate-pulse" />
-            <span className="text-sm font-bold bg-gradient-to-r from-white via-slate-100 to-[#00F0FF] bg-clip-text text-transparent">
-              AI Market Intelligence
-            </span>
-          </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live AI
+          <span className="text-xs font-bold text-white uppercase tracking-wider font-sans">
+            Sinyal &amp; Analisis
+          </span>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+            SMC Engine
           </span>
         </div>
 
-        {/* Tab Buttons (4 Tabs) */}
-        <div className="grid grid-cols-4 p-0.5 bg-[#070A12] rounded-lg border border-slate-800/80 text-[11px] font-medium">
+        {/* Tab Buttons (4 Clean Tabs) */}
+        <div className="grid grid-cols-4 p-0.5 bg-[#070A12] rounded-lg border border-slate-800 text-xs font-medium">
           <button
             onClick={() => setActiveTab('ai-signal')}
-            className={`py-1.5 rounded transition-all text-center flex items-center justify-center gap-1 ${
+            className={`py-1 rounded text-center transition-colors ${
               activeTab === 'ai-signal'
-                ? 'bg-[#00F0FF]/15 text-[#00F0FF] font-bold border border-[#00F0FF]/30 shadow-sm'
+                ? 'bg-slate-800 text-white font-semibold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Bot className="w-3 h-3" />
-            <span>AI Signal</span>
+            Sinyal
           </button>
           <button
             onClick={() => setActiveTab('signals')}
-            className={`py-1.5 rounded transition-all text-center ${
+            className={`py-1 rounded text-center transition-colors ${
               activeTab === 'signals'
-                ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                ? 'bg-slate-800 text-white font-semibold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -211,9 +206,9 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('technical')}
-            className={`py-1.5 rounded transition-all text-center ${
+            className={`py-1 rounded text-center transition-colors ${
               activeTab === 'technical'
-                ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                ? 'bg-slate-800 text-white font-semibold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -221,9 +216,9 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('market')}
-            className={`py-1.5 rounded transition-all text-center ${
+            className={`py-1 rounded text-center transition-colors ${
               activeTab === 'market'
-                ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                ? 'bg-slate-800 text-white font-semibold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -233,164 +228,99 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* TAB 1: AI SIGNAL GENERATOR WIDGET */}
+      {/* TAB 1: SIGNAL GENERATOR & EXECUTION */}
       {/* ======================================================== */}
       {activeTab === 'ai-signal' && (
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          {/* AI Engine Status Header Card */}
-          <div className="p-3 rounded-xl bg-[#0F1626] border border-emerald-500/30 glow-emerald-sm space-y-2.5">
+          {/* Signal Controls Toolbar */}
+          <div className="p-3 rounded-xl bg-[#0F1626] border border-slate-800 space-y-2.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center justify-center">
-                  <span className="h-3 w-3 rounded-full bg-emerald-400 animate-ping absolute" />
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                </div>
-                <span className="font-bold text-white text-xs">
-                  AI Signal Generator
-                </span>
-              </div>
+              <span className="font-semibold text-white text-xs">
+                Generator Sinyal
+              </span>
               
               {/* Settings Toggle Button */}
               <button
                 onClick={() => setShowConfigDrawer(!showConfigDrawer)}
-                className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-[#00F0FF] border border-slate-800 transition-colors flex items-center gap-1 text-[11px]"
-                title="Konfigurasi API Key (Gemini / OpenAI)"
+                className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors flex items-center gap-1 text-[11px]"
+                title="Konfigurasi API Model"
               >
                 <Settings className="w-3.5 h-3.5" />
-                <span className="font-mono text-[10px] hidden sm:inline">API Config</span>
+                <span className="font-mono text-[10px] hidden sm:inline">Pengaturan</span>
               </button>
             </div>
 
             {/* API Configuration Drawer */}
             {showConfigDrawer && (
-              <div className="p-3 rounded-lg bg-[#0B0F1C] border border-[#00F0FF]/30 space-y-2 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between text-[11px] font-bold text-[#00F0FF]">
-                  <span className="flex items-center gap-1.5">
-                    <Key className="w-3 h-3" />
-                    Konfigurasi Model & API Key
-                  </span>
+              <div className="p-3 rounded-lg bg-[#0B0F1C] border border-slate-800 space-y-2 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between text-xs font-bold text-white">
+                  <span>Routing Engine</span>
                   <button onClick={() => setShowConfigDrawer(false)} className="text-slate-400 hover:text-white">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
                 {/* Provider Radio Tabs */}
-                <div className="grid grid-cols-3 gap-1 p-1 bg-black/50 rounded-lg border border-slate-800 text-[10px]">
+                <div className="grid grid-cols-3 gap-1 p-0.5 bg-black/50 rounded border border-slate-800 text-[10px]">
                   <button
                     onClick={() => setAiProvider('auto')}
-                    className={`py-1 rounded font-semibold transition-all ${
+                    className={`py-1 rounded font-medium transition-colors ${
                       aiProvider === 'auto' || aiProvider === '9router'
-                        ? 'bg-[#00F0FF]/25 text-[#00F0FF] border border-[#00F0FF]/40 shadow-sm'
+                        ? 'bg-slate-800 text-white font-bold'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    ⚡ 9Router OP
+                    Auto Quant
                   </button>
                   <button
                     onClick={() => setAiProvider('gemini')}
-                    className={`py-1 rounded font-semibold transition-all ${
+                    className={`py-1 rounded font-medium transition-colors ${
                       aiProvider === 'gemini'
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                        ? 'bg-slate-800 text-white font-bold'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    Gemini API
+                    Gemini
                   </button>
                   <button
                     onClick={() => setAiProvider('openai')}
-                    className={`py-1 rounded font-semibold transition-all ${
+                    className={`py-1 rounded font-medium transition-colors ${
                       aiProvider === 'openai'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        ? 'bg-slate-800 text-white font-bold'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    OpenAI GPT
+                    OpenAI
                   </button>
                 </div>
-
-                {/* 9Router Specific Controls */}
-                {(aiProvider === 'auto' || aiProvider === '9router') && (
-                  <div className="space-y-1.5 pt-0.5">
-                    <div>
-                      <label className="text-[10px] text-slate-400 block font-mono">
-                        9Router Base URL
-                      </label>
-                      <input
-                        type="text"
-                        value={routerUrl}
-                        onChange={(e) => setRouterUrl(e.target.value)}
-                        placeholder="http://127.0.0.1:20128/v1"
-                        className="w-full px-2.5 py-1 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-[#00F0FF]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-slate-400 block font-mono">
-                        Model AI (Ketik &apos;auto&apos; untuk rotasi OP model)
-                      </label>
-                      <input
-                        type="text"
-                        value={routerModel}
-                        onChange={(e) => setRouterModel(e.target.value)}
-                        placeholder="auto (Claude 5.5, Gemini 3.8, DeepSeek, Grok)"
-                        className="w-full px-2.5 py-1 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-[#00F0FF]"
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {/* API Key Input */}
                 <div className="space-y-1">
                   <label className="text-[10px] text-slate-400 block font-mono">
-                    {aiProvider === 'gemini' 
-                      ? 'Gemini API Key' 
-                      : aiProvider === 'openai' 
-                      ? 'OpenAI API Key' 
-                      : '9Router API Key (Opsional / Auto-Detect)'}
+                    API Key (Opsional)
                   </label>
                   <input
                     type="password"
                     value={customApiKey}
                     onChange={(e) => setCustomApiKey(e.target.value)}
-                    placeholder={
-                      aiProvider === 'gemini' 
-                        ? 'AIzaSy...' 
-                        : aiProvider === 'openai' 
-                        ? 'sk-...' 
-                        : 'Auto-detect dari SQLite 9Router lokal'
-                    }
-                    className="w-full px-2.5 py-1.5 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-[#00F0FF]"
+                    placeholder="Dikosongkan untuk internal algo engine"
+                    className="w-full px-2 py-1 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-blue-500"
                   />
-                  <p className="text-[9px] text-slate-500 leading-tight">
-                    {aiProvider === 'auto' || aiProvider === '9router'
-                      ? '*9Router otomatis mendeteksi model paling OP yang sedang aktif & memutar akun tanpa hambatan.'
-                      : '*Jika dikosongkan, widget otomatis menggunakan Quant Algorithmic Engine internal tanpa error.'}
-                  </p>
                 </div>
 
                 <button
                   onClick={handleSaveApiSettings}
-                  className="w-full py-1.5 bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold text-xs rounded transition-colors"
+                  className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs rounded transition-colors"
                 >
-                  Simpan Pengaturan
+                  Simpan
                 </button>
               </div>
             )}
 
-            {/* Toast for saved key */}
-            {keySavedToast && (
-              <div className="p-1.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] flex items-center gap-1.5 border border-emerald-500/40">
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span>Pengaturan API berhasil disimpan!</span>
-              </div>
-            )}
-
-            {/* Timeframe Selector for AI Analysis */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                <span>Timeframe Analisis</span>
-                <span className="text-[#00F0FF] font-bold">{aiTimeframe}</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1 p-0.5 bg-black/50 rounded-lg border border-slate-800 text-[10px] font-mono">
+            {/* Timeframe Selector for Analysis */}
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400 text-[11px]">Timeframe:</span>
+              <div className="flex gap-1">
                 {(['15m', '1h', '4h', '1d'] as Timeframe[]).map((tf) => (
                   <button
                     key={tf}
@@ -398,9 +328,9 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                       setAiTimeframe(tf);
                       if (onTimeframeChange) onTimeframeChange(tf);
                     }}
-                    className={`py-1 rounded font-semibold transition-all ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
                       aiTimeframe === tf
-                        ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40 shadow-sm'
+                        ? 'bg-slate-800 text-white font-bold border border-slate-700'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -410,329 +340,135 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
               </div>
             </div>
 
-            {/* Generate AI Trigger Button */}
+            {/* Clean Trigger Button */}
             <button
               onClick={handleGenerateAISignal}
               disabled={isAnalyzing}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#00F0FF]/90 to-[#10B981] hover:opacity-95 text-black font-extrabold text-xs flex items-center justify-center gap-2 glow-cyan transition-all shadow-md active:scale-98 disabled:opacity-50"
+              className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               {isAnalyzing ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                  <span>Menganalisis Kuantitatif & Candlestick...</span>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+                  <span>Memindai Struktur Pasar...</span>
                 </>
               ) : (
                 <>
-                  <Bot className="w-4 h-4 fill-black" />
-                  <span>⚡ Analisis Sinyal {selectedInstrument.symbol} Sekarang</span>
+                  <Target className="w-3.5 h-3.5 text-white" />
+                  <span>Scan Setup {selectedInstrument.symbol}</span>
                 </>
               )}
             </button>
           </div>
 
           {/* ======================================================== */}
-          {/* KARTU SINYAL MENARIK (HASIL GENERATED DARI API ROUTE) */}
+          {/* KARTU SINYAL INSTITUSIONAL (CLEAN, PRO TRADING CARD) */}
           {/* ======================================================== */}
           {generatedSignal ? (
-            <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#0B101D] to-[#0E1528] border border-[#00F0FF]/40 glow-cyan-sm space-y-3 animate-in fade-in zoom-in-95 duration-200">
-              {/* Header Kartu: Simbol, Sinyal Badge & Provider */}
+            <div className="p-3.5 rounded-xl bg-[#0B0F1C] border border-slate-800 space-y-3 animate-in fade-in duration-200">
+              {/* Header: Pair, Direction Badge & Time */}
               <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-white">{generatedSignal.symbol}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">
+                    <span className="text-sm font-bold text-white font-sans">{generatedSignal.symbol}</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
                       {generatedSignal.timeframe}
                     </span>
                     {generatedSignal.riskRewardRatio && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                        R:R 1:{generatedSignal.riskRewardRatio}
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">
+                        1:{generatedSignal.riskRewardRatio} R:R
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mt-0.5">
-                    <Clock className="w-3 h-3 text-[#00F0FF]" />
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono mt-0.5">
                     <span>{generatedSignal.analyzedAt}</span>
                     <span>•</span>
-                    <span className="uppercase text-[#00F0FF] font-semibold">{generatedSignal.provider}</span>
+                    <span className="text-slate-300">{generatedSignal.provider}</span>
                   </div>
                 </div>
 
-                {/* Signal Badge: BUY / SELL / WAIT */}
-                <div>
-                  <span
-                    className={`text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                      generatedSignal.signal === 'BUY'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 glow-emerald'
-                        : generatedSignal.signal === 'SELL'
-                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50 glow-rose'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
-                    }`}
-                  >
-                    <Flame className="w-3.5 h-3.5" />
-                    <span>{generatedSignal.signal}</span>
+                {/* Direction Badge */}
+                <span
+                  className={`text-xs font-bold px-2.5 py-1 rounded font-mono ${
+                    generatedSignal.signal === 'BUY'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : generatedSignal.signal === 'SELL'
+                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                      : 'bg-slate-800 text-amber-300 border border-slate-700'
+                  }`}
+                >
+                  {generatedSignal.signal === 'BUY' ? 'LONG (BUY)' : generatedSignal.signal === 'SELL' ? 'SHORT (SELL)' : 'WAIT / NEUTRAL'}
+                </span>
+              </div>
+
+              {/* Primary Execution Levels: 2x2 Clean Grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 block font-sans">Harga Masuk (Entry)</span>
+                  <span className="font-bold text-white text-sm mt-0.5 block">
+                    ${generatedSignal.currentPrice}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                  <span className="text-[10px] text-emerald-400 block font-sans">Target (TP)</span>
+                  <span className="font-bold text-emerald-300 text-sm mt-0.5 block">
+                    ${generatedSignal.targetPrice}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-rose-500/5 border border-rose-500/20">
+                  <span className="text-[10px] text-rose-400 block font-sans">Stop Loss (Anti-Hunt)</span>
+                  <span className="font-bold text-rose-300 text-sm mt-0.5 block">
+                    ${generatedSignal.stopLoss}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 block font-sans">Tingkat Keyakinan</span>
+                  <span className="font-bold text-slate-200 text-sm mt-0.5 block">
+                    {generatedSignal.confidence}%
                   </span>
                 </div>
               </div>
 
-              {/* Confidence Score Bar */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400 flex items-center gap-1">
-                    <Activity className="w-3 h-3 text-[#00F0FF]" />
-                    Tingkat Akurasi (Confidence)
-                  </span>
-                  <span className="font-mono font-bold text-[#00F0FF] text-xs">
-                    {generatedSignal.confidence}% Akurat
-                  </span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      generatedSignal.signal === 'BUY'
-                        ? 'bg-gradient-to-r from-emerald-500 to-[#00F0FF]'
-                        : generatedSignal.signal === 'SELL'
-                        ? 'bg-gradient-to-r from-amber-500 to-rose-500'
-                        : 'bg-gradient-to-r from-slate-500 to-amber-400'
-                    }`}
-                    style={{ width: `${generatedSignal.confidence}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* ICT Institutional Flow & Smart Money Intelligence (5 Books 79Trades Concept) */}
+              {/* SMC & ICT Intelligence Overview */}
               {generatedSignal.ict && (
-                <div className="p-2.5 rounded-lg bg-[#070D1A] border border-[#00F0FF]/30 space-y-2 font-mono text-[11px]">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#00F0FF]" />
-                      <span className="text-[10px] uppercase font-bold text-slate-200">
-                        SMC & ICT Institutional Matrix
-                      </span>
-                    </div>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                      generatedSignal.ict.dailyBias === 'BULLISH'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                        : generatedSignal.ict.dailyBias === 'BEARISH'
-                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    }`}>
+                <div className="p-2.5 rounded-lg bg-black/30 border border-slate-800 text-xs font-mono space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-sans">Setup Institusional:</span>
+                    <span className="text-white font-medium">{generatedSignal.ict.setupName || 'ICT Protocol'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-sans">Bias &amp; Model:</span>
+                    <span className={generatedSignal.ict.dailyBias === 'BULLISH' ? 'text-emerald-400 font-medium' : generatedSignal.ict.dailyBias === 'BEARISH' ? 'text-rose-400 font-medium' : 'text-slate-300'}>
                       {generatedSignal.ict.dailyBias} ({generatedSignal.ict.biasModel})
                     </span>
                   </div>
-
-                  {/* Session / Killzone + Pricing Array */}
-                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                    <div className="p-1.5 rounded bg-black/40 border border-slate-800/80">
-                      <span className="text-[9px] text-slate-400 block font-sans">Session / Killzone:</span>
-                      <div className="flex items-center gap-1 text-slate-200 font-semibold mt-0.5 truncate">
-                        <Clock className="w-3 h-3 text-[#00F0FF] shrink-0" />
-                        <span className="truncate">{generatedSignal.ict.killzoneName}</span>
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-black/40 border border-slate-800/80">
-                      <span className="text-[9px] text-slate-400 block font-sans">Pricing Array:</span>
-                      <div className="flex items-center gap-1 font-semibold mt-0.5">
-                        <span className={`text-[10px] ${
-                          generatedSignal.ict.zone === 'DISCOUNT'
-                            ? 'text-emerald-400'
-                            : generatedSignal.ict.zone === 'PREMIUM'
-                            ? 'text-rose-400'
-                            : 'text-amber-400'
-                        }`}>
-                          {generatedSignal.ict.zone} ({generatedSignal.ict.discountPct}%)
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-sans">Pricing Array:</span>
+                    <span className={generatedSignal.ict.zone === 'DISCOUNT' ? 'text-emerald-400' : generatedSignal.ict.zone === 'PREMIUM' ? 'text-rose-400' : 'text-slate-300'}>
+                      {generatedSignal.ict.zone} ({generatedSignal.ict.discountPct}%)
+                    </span>
                   </div>
-
-                  {/* Setup & Liquidity Target Pools */}
-                  <div className="text-[10px] bg-black/50 p-2 rounded border border-slate-800/80 space-y-1">
-                    {generatedSignal.ict.setupName && (
-                      <div className="flex items-center justify-between text-slate-300">
-                        <span className="text-slate-400 font-sans">Institutional Setup:</span>
-                        <span className="text-[#00F0FF] font-bold">{generatedSignal.ict.setupName}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between text-slate-300">
-                      <span className="text-slate-400 font-sans">Liquidity Pools:</span>
-                      <span className="text-slate-200">
-                        PDH: <strong className="text-emerald-400">${generatedSignal.ict.pdh}</strong> | PDL: <strong className="text-rose-400">${generatedSignal.ict.pdl}</strong>
-                      </span>
-                    </div>
-                    {generatedSignal.ict.fvgMidpoint && (
-                      <div className="flex items-center justify-between text-slate-300">
-                        <span className="text-slate-400 font-sans">FVG CE (50%):</span>
-                        <span className="text-amber-300 font-bold">${generatedSignal.ict.fvgMidpoint}</span>
-                      </div>
-                    )}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-sans">Sesi Killzone:</span>
+                    <span className="text-slate-300">{generatedSignal.ict.killzoneName}</span>
                   </div>
                 </div>
               )}
 
-              {/* Indikator Snapshot (RSI, Moving Average, MACD, ATR) */}
-              <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
-                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
-                  <div className="text-[9px] text-slate-400 uppercase font-sans">RSI (14)</div>
-                  <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className="text-white font-bold">{generatedSignal.indicators.rsi}</span>
-                    <span className={`text-[9px] px-1 rounded ${
-                      generatedSignal.indicators.rsi < 35 
-                        ? 'text-emerald-400 bg-emerald-500/10' 
-                        : generatedSignal.indicators.rsi > 65 
-                        ? 'text-rose-400 bg-rose-500/10' 
-                        : 'text-amber-400 bg-amber-500/10'
-                    }`}>
-                      {generatedSignal.indicators.rsiStatus || (generatedSignal.indicators.rsi < 35 ? 'Oversold' : generatedSignal.indicators.rsi > 65 ? 'Overbought' : 'Netral')}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
-                  <div className="text-[9px] text-slate-400 uppercase font-sans">Moving Average</div>
-                  <div className="text-slate-200 font-bold mt-0.5 truncate text-[10px]">
-                    MA20: ${generatedSignal.indicators.maShort}
-                  </div>
-                  <div className="text-slate-400 text-[9px] truncate">
-                    MA50: ${generatedSignal.indicators.maLong}
-                  </div>
-                </div>
-
-                {generatedSignal.indicators.macd && (
-                  <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
-                    <div className="text-[9px] text-slate-400 uppercase font-sans">MACD (12, 26, 9)</div>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                      <span className={`font-bold ${generatedSignal.indicators.macd.histogram >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {generatedSignal.indicators.macd.histogram >= 0 ? '+' : ''}{generatedSignal.indicators.macd.histogram}
-                      </span>
-                      <span className="text-[9px] text-slate-400">
-                        {generatedSignal.indicators.macd.trend}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {generatedSignal.indicators.atr && (
-                  <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
-                    <div className="text-[9px] text-slate-400 uppercase font-sans">Volatilitas (ATR)</div>
-                    <div className="text-slate-200 font-bold mt-0.5 truncate text-[10px]">
-                      ±${generatedSignal.indicators.atr}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Status Tren MA */}
-              <div className="px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-[11px]">
-                <span className="text-slate-400">Status Tren:</span>
-                <span className="font-semibold text-slate-200 font-mono">
-                  {generatedSignal.indicators.trend}
+              {/* Rationale Naratif */}
+              <div className="p-2.5 rounded-lg bg-black/40 border border-slate-800/80 text-xs space-y-1">
+                <span className="text-[10px] text-slate-400 font-medium uppercase block tracking-wider">
+                  Analisis Eksekusi
                 </span>
-              </div>
-
-              {/* Level Eksekusi: Target Price & Stop Loss */}
-              <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                  <div className="text-[9px] text-emerald-400 uppercase font-sans font-semibold">
-                    Target Price
-                  </div>
-                  <div className="text-emerald-300 font-bold text-xs mt-0.5">
-                    ${generatedSignal.targetPrice}
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30">
-                  <div className="text-[9px] text-rose-400 uppercase font-sans font-semibold">
-                    Stop Loss
-                  </div>
-                  <div className="text-rose-300 font-bold text-xs mt-0.5">
-                    ${generatedSignal.stopLoss}
-                  </div>
-                </div>
-              </div>
-
-              {/* Anti-SL Institutional Shield Banner */}
-              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-400">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Anti-SL Shield (Smart Money Execution)</span>
-                </div>
-                <p className="text-slate-300 text-[10px] leading-relaxed">
-                  {generatedSignal.signal === 'BUY'
-                    ? `Stop Loss ($${generatedSignal.stopLoss}) terlindungi di bawah swing low/Order Block untuk menghindari stop-run likuiditas retail sebelum ekspansi harga ke target ERL.`
-                    : generatedSignal.signal === 'SELL'
-                    ? `Stop Loss ($${generatedSignal.stopLoss}) terlindungi di atas swing high/Order Block untuk mencegah sweep likuiditas retail sebelum ekspansi harga ke target ERL.`
-                    : `Menunggu likuiditas sweep (IRL/ERL) yang valid sebelum eksekusi demi menghindari resiko Stop Loss tersapu.`}
-                </p>
-              </div>
-
-              {/* Level Kunci: Support & Resistance Terverifikasi */}
-              <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
-                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
-                  <div className="text-[9px] text-slate-400 uppercase font-sans">
-                    Support Kunci
-                  </div>
-                  <div className="text-emerald-400 font-bold mt-0.5">
-                    ${generatedSignal.indicators.support || technical.s1}
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
-                  <div className="text-[9px] text-slate-400 uppercase font-sans">
-                    Resistance Kunci
-                  </div>
-                  <div className="text-rose-400 font-bold mt-0.5">
-                    ${generatedSignal.indicators.resistance || technical.r1}
-                  </div>
-                </div>
-              </div>
-
-              {/* Matriks Tren Pasar Multi-Timeframe Langsung di Sinyal */}
-              <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80 space-y-1.5">
-                <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase font-sans">
-                  <span>Matriks Tren Pasar (Multi-TF)</span>
-                  <span className="text-slate-500 font-mono">15m • 1h • 4h • 1d</span>
-                </div>
-                <div className="grid grid-cols-4 gap-1 text-[10px] font-mono text-center">
-                  {tfMatrix.map((item) => (
-                    <div key={item.timeframe} className="p-1 rounded bg-slate-900/80 border border-slate-800">
-                      <div className="text-[9px] text-slate-400">{item.timeframe}</div>
-                      <div
-                        className={`font-bold text-[10px] ${
-                          item.trend === 'BULLISH'
-                            ? 'text-emerald-400'
-                            : item.trend === 'BEARISH'
-                            ? 'text-rose-400'
-                            : 'text-amber-400'
-                        }`}
-                      >
-                        {item.trend === 'BULLISH' ? 'BUY' : item.trend === 'BEARISH' ? 'SELL' : 'NEU'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Alasan Ringkas AI (Reasoning Box) */}
-              <div className="p-2.5 rounded-lg bg-[#070A12] border border-[#00F0FF]/25 space-y-1">
-                <div className="text-[10px] text-[#00F0FF] uppercase tracking-wider font-bold flex items-center gap-1">
-                  <Bot className="w-3 h-3 text-[#00F0FF]" />
-                  Alasan Ringkas AI:
-                </div>
-                <p className="text-slate-200 text-[11px] leading-relaxed">
+                <p className="text-slate-300 text-xs leading-relaxed font-sans">
                   {generatedSignal.reason}
                 </p>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={handleGenerateAISignal}
-                  className="flex-1 py-2 rounded-lg bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 text-[#00F0FF] border border-[#00F0FF]/40 font-bold text-xs flex items-center justify-center gap-1.5 transition-all glow-cyan-sm"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Analisis Ulang</span>
-                </button>
-
+              <div className="flex items-center gap-2 pt-1">
                 {onOpenJournal && (
                   <button
                     onClick={() => {
@@ -742,50 +478,62 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                         onOpenJournal();
                       }
                     }}
-                    className="flex-1 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/40 font-bold text-xs flex items-center justify-center gap-1.5 transition-all glow-emerald-sm"
-                    title="Simulasikan dan Catat ke Jurnal Trading"
+                    className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span>Catat Jurnal</span>
+                    <span>Catat ke Jurnal</span>
                   </button>
                 )}
 
                 <button
+                  onClick={handleGenerateAISignal}
+                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
+                  title="Pindai Ulang Setup"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+
+                <button
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `AI Signal (${generatedSignal.symbol}): ${generatedSignal.signal} | Target: $${generatedSignal.targetPrice} | SL: $${generatedSignal.stopLoss} | ${generatedSignal.reason}`
+                      `Signal (${generatedSignal.symbol}): ${generatedSignal.signal} | Entry: $${generatedSignal.currentPrice} | TP: $${generatedSignal.targetPrice} | SL: $${generatedSignal.stopLoss}`
                     );
                     setSignalCopied(true);
                     setTimeout(() => setSignalCopied(false), 2000);
                   }}
-                  className="p-2 rounded-lg bg-[#0F1524] hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
+                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
                   title="Salin Sinyal"
                 >
-                  {signalCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {signalCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
           ) : (
-            /* Kartu Tampilan Awal Sebelum Generate */
-            <div className="p-4 rounded-xl bg-gradient-to-br from-[#0B101D] to-[#0E1528] border border-slate-800 text-center space-y-3">
-              <div className="mx-auto w-12 h-12 rounded-full bg-[#00F0FF]/10 border border-[#00F0FF]/30 flex items-center justify-center text-[#00F0FF] glow-cyan-sm">
-                <Bot className="w-6 h-6" />
+            /* Clean Empty State */
+            <div className="p-4 rounded-xl bg-[#0B0F1C] border border-slate-800 text-center space-y-3">
+              <div className="mx-auto w-10 h-10 rounded-lg bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-300">
+                <Target className="w-5 h-5 text-slate-300" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-sm">AI Technical Signal Ready</h4>
+                <h4 className="font-semibold text-white text-xs">Siap Memindai Setup</h4>
                 <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
-                  Klik tombol di atas untuk menganalisis {selectedInstrument.symbol} menggunakan algoritma kuantitatif RSI (14) dan Moving Average (EMA 20/50).
+                  Pindai struktur pasar {selectedInstrument.symbol} menggunakan konfluensi SMC &amp; ICT institusional (Killzone, OTE, dan Anti-SL Shield).
                 </p>
               </div>
-              <div className="p-2.5 rounded-lg bg-black/40 border border-slate-800/80 text-left font-mono text-[10px] space-y-1">
-                <div className="text-slate-400 uppercase font-sans font-semibold text-[9px]">Instrumen Aktif:</div>
-                <div className="flex justify-between text-slate-200">
-                  <span>{selectedInstrument.symbol}</span>
-                  <span className="text-[#00F0FF]">${selectedInstrument.price}</span>
+              <div className="p-2 rounded-lg bg-black/40 border border-slate-800 text-left font-mono text-[10px] space-y-1">
+                <div className="flex justify-between text-slate-300">
+                  <span>Instrumen:</span>
+                  <span className="text-white font-semibold">{selectedInstrument.symbol}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Koneksi Engine:</span>
-                  <span className="text-emerald-400 font-bold">Siap (Endpoint /api/ai-signal)</span>
+                <div className="flex justify-between text-slate-300">
+                  <span>Harga:</span>
+                  <span className="text-white">${selectedInstrument.price}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Bias Teknikal:</span>
+                  <span className={technical.bias === 'BULLISH' ? 'text-emerald-400' : technical.bias === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}>
+                    {technical.bias}
+                  </span>
                 </div>
               </div>
             </div>

@@ -63,7 +63,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const [showVolume, setShowVolume] = useState(true);
   const [showRSI, setShowRSI] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'pivots' | 'ict' | 'indicators'>('signals');
-  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(true);
   const [isBottomExpanded, setIsBottomExpanded] = useState(false);
 
   // Chart DOM container and instance refs
@@ -485,39 +485,21 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       {/* Active Instrument Top Banner */}
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 py-2 bg-[#0A0E1A]/95 border-b border-slate-800/80 gap-2">
         {/* Left: Active Asset Meta */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight">
+            <span className="text-base sm:text-lg md:text-xl font-bold text-white tracking-tight">
               {selectedInstrument.symbol}
             </span>
-            <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/80">
               {selectedInstrument.name}
             </span>
-            <span
-              className={`text-[9px] sm:text-[10px] font-mono font-bold px-1.5 sm:px-2 py-0.5 rounded border ${
-                technical.bias === 'BULLISH'
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  : technical.bias === 'BEARISH'
-                  ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-                  : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-              }`}
-            >
-              BIAS: {technical.bias}
-            </span>
-            {selectedInstrument.type === 'crypto' && (
-              <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700">
-                <Radio className={`w-3 h-3 ${isKlinesValidating ? 'animate-spin text-blue-400' : 'text-emerald-400'}`} />
-                <span className="hidden sm:inline">BINANCE LIVE</span>
-                <span className="sm:hidden">LIVE</span>
-              </span>
-            )}
           </div>
 
-          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-4 w-px bg-slate-800" />
 
           {/* Current Live Price */}
           <div className="flex items-baseline gap-1.5 sm:gap-2">
-            <span className="text-lg sm:text-xl md:text-2xl font-extrabold font-mono text-white tracking-tight">
+            <span className="text-base sm:text-lg md:text-xl font-bold font-mono text-white tracking-tight">
               ${selectedInstrument.decimals > 2
                 ? selectedInstrument.price.toFixed(selectedInstrument.decimals)
                 : selectedInstrument.price.toLocaleString('en-US', {
@@ -526,10 +508,10 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   })}
             </span>
             <span
-              className={`flex items-center text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+              className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${
                 selectedInstrument.change24h >= 0
-                  ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30'
-                  : 'text-rose-400 bg-rose-500/15 border border-rose-500/30'
+                  ? 'text-emerald-400 bg-emerald-500/10'
+                  : 'text-rose-400 bg-rose-500/10'
               }`}
             >
               {selectedInstrument.change24h >= 0 ? '+' : ''}
@@ -756,96 +738,89 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
           <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar max-w-[75%] sm:max-w-none">
             <button
               onClick={() => {
-                setActiveBottomTab('signals');
-                if (isBottomCollapsed) setIsBottomCollapsed(false);
+                if (!isBottomCollapsed && activeBottomTab === 'signals') {
+                  setIsBottomCollapsed(true);
+                } else {
+                  setActiveBottomTab('signals');
+                  setIsBottomCollapsed(false);
+                }
               }}
-              className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors shrink-0 ${
                 activeBottomTab === 'signals' && !isBottomCollapsed
-                  ? 'bg-slate-800 text-blue-400 border border-blue-500/30 font-semibold'
+                  ? 'bg-slate-800 text-white font-medium border border-slate-700'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span className="sm:hidden">⚡ Sinyal</span>
-              <span className="hidden sm:inline">Live Signal Screener</span>
-              <span className="text-[10px] font-mono px-1 rounded-full bg-blue-500/20 text-blue-400">
+              <span>Sinyal</span>
+              <span className="text-[10px] font-mono px-1 rounded bg-slate-800 text-slate-300">
                 {marketSignals.length}
               </span>
             </button>
             <button
               onClick={() => {
-                setActiveBottomTab('pivots');
-                if (isBottomCollapsed) setIsBottomCollapsed(false);
+                if (!isBottomCollapsed && activeBottomTab === 'pivots') {
+                  setIsBottomCollapsed(true);
+                } else {
+                  setActiveBottomTab('pivots');
+                  setIsBottomCollapsed(false);
+                }
               }}
-              className={`px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+              className={`px-2.5 py-1 rounded text-xs transition-colors shrink-0 ${
                 activeBottomTab === 'pivots' && !isBottomCollapsed
-                  ? 'bg-slate-800 text-blue-400 border border-blue-500/30 font-semibold'
+                  ? 'bg-slate-800 text-white font-medium border border-slate-700'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span className="sm:hidden">🎯 Level Kunci</span>
-              <span className="hidden sm:inline">Level Kunci & Pivot</span>
+              <span>Level Pivot</span>
             </button>
             <button
               onClick={() => {
-                setActiveBottomTab('ict');
-                if (isBottomCollapsed) setIsBottomCollapsed(false);
+                if (!isBottomCollapsed && activeBottomTab === 'ict') {
+                  setIsBottomCollapsed(true);
+                } else {
+                  setActiveBottomTab('ict');
+                  setIsBottomCollapsed(false);
+                }
               }}
-              className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors shrink-0 ${
                 activeBottomTab === 'ict' && !isBottomCollapsed
-                  ? 'bg-slate-800 text-[#00F0FF] border border-[#00F0FF]/40 font-semibold shadow-sm'
+                  ? 'bg-slate-800 text-white font-medium border border-slate-700'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-[#00F0FF]" />
-              <span className="sm:hidden">🏛️ SMC</span>
-              <span className="hidden sm:inline">SMC & ICT (Anti-SL)</span>
+              <ShieldCheck className="w-3 h-3 text-slate-300" />
+              <span>SMC & ICT</span>
             </button>
             <button
               onClick={() => {
-                setActiveBottomTab('indicators');
-                if (isBottomCollapsed) setIsBottomCollapsed(false);
+                if (!isBottomCollapsed && activeBottomTab === 'indicators') {
+                  setIsBottomCollapsed(true);
+                } else {
+                  setActiveBottomTab('indicators');
+                  setIsBottomCollapsed(false);
+                }
               }}
-              className={`px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+              className={`px-2.5 py-1 rounded text-xs transition-colors shrink-0 ${
                 activeBottomTab === 'indicators' && !isBottomCollapsed
-                  ? 'bg-slate-800 text-blue-400 border border-blue-500/30 font-semibold'
+                  ? 'bg-slate-800 text-white font-medium border border-slate-700'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span className="sm:hidden">📊 Matriks TF</span>
-              <span className="hidden sm:inline">Matriks Multi-Timeframe</span>
+              <span>Multi-TF</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-mono text-[#00F0FF] hidden md:inline px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700">
-              {selectedInstrument.symbol}
-            </span>
-
+          <div className="flex items-center gap-1 shrink-0">
             {/* Toggle Maximize / Normal Height */}
-            <button
-              onClick={() => {
-                if (isBottomCollapsed) setIsBottomCollapsed(false);
-                setIsBottomExpanded(!isBottomExpanded);
-              }}
-              className={`px-2 py-0.5 rounded transition-all flex items-center gap-1 text-[11px] font-mono border ${
-                isBottomExpanded
-                  ? 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/40 font-bold'
-                  : 'bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white border-slate-800'
-              }`}
-              title={isBottomExpanded ? 'Kembalikan Ukuran Normal' : 'Perbesar Tampilan Panel Bawah'}
-            >
-              {isBottomExpanded ? (
-                <>
-                  <Minimize2 className="w-3.5 h-3.5 text-[#00F0FF]" />
-                  <span className="hidden sm:inline">Normal</span>
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Perbesar</span>
-                </>
-              )}
-            </button>
+            {!isBottomCollapsed && (
+              <button
+                onClick={() => setIsBottomExpanded(!isBottomExpanded)}
+                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-xs font-mono"
+                title={isBottomExpanded ? 'Kembalikan Ukuran Normal' : 'Perbesar Tampilan'}
+              >
+                {isBottomExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
+            )}
 
             {/* Toggle Collapse / Expand */}
             <button
@@ -853,11 +828,11 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                 setIsBottomCollapsed(!isBottomCollapsed);
                 if (isBottomExpanded) setIsBottomExpanded(false);
               }}
-              className="px-2 py-0.5 rounded bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors flex items-center gap-1 text-[11px] font-mono"
-              title={isBottomCollapsed ? 'Buka Panel' : 'Minimalkan Panel'}
+              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex items-center gap-1 text-xs font-mono"
+              title={isBottomCollapsed ? 'Buka Panel' : 'Tutup Panel'}
             >
-              <span className="hidden sm:inline">{isBottomCollapsed ? 'Buka' : 'Sembunyikan'}</span>
-              {isBottomCollapsed ? <ChevronUp className="w-3.5 h-3.5 text-[#00F0FF]" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isBottomCollapsed ? 'Buka' : 'Tutup'}</span>
+              {isBottomCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
