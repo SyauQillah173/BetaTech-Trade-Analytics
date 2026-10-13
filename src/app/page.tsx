@@ -170,7 +170,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 3. Main Panel Tengah (Grafik Interaktif Lightweight Charts & Technical Scanner) */}
-        <div className={`flex-1 h-full min-w-0 ${mobileView === 'chart' ? 'flex overflow-y-auto' : 'hidden lg:flex'} flex-col`}>
+        <div className={`flex-1 h-full min-h-0 min-w-0 ${mobileView === 'chart' ? 'flex' : 'hidden lg:flex'} flex-col overflow-hidden`}>
           <MainChartPanel
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}

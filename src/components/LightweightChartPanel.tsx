@@ -8,6 +8,8 @@ import {
   Radio,
   ChevronDown,
   ChevronUp,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import {
   createChart,
@@ -54,6 +56,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const [showRSI, setShowRSI] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'pivots' | 'indicators'>('signals');
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+  const [isBottomExpanded, setIsBottomExpanded] = useState(false);
 
   // Chart DOM container and instance refs
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -457,7 +460,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const timeframes: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
   return (
-    <section className="flex-1 flex flex-col bg-[#070A12] overflow-y-auto lg:overflow-hidden min-w-0">
+    <section className="flex-1 h-full min-h-0 flex flex-col bg-[#070A12] overflow-y-auto lg:overflow-hidden min-w-0 custom-scrollbar">
       {/* Active Instrument Top Banner */}
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 py-2 bg-[#0A0E1A]/95 border-b border-slate-800/80 gap-2">
         {/* Left: Active Asset Meta */}
@@ -675,8 +678,8 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         </div>
       </div>
 
-      {/* Main Lightweight Charts Container */}
-      <div className="relative w-full h-[340px] sm:h-[400px] lg:h-auto lg:flex-1 shrink-0 bg-[#06080F] overflow-hidden select-none">
+      {/* Main Lightweight Charts Container (Responsive flex height) */}
+      <div className="relative w-full h-[280px] sm:h-[320px] lg:h-auto lg:flex-1 min-h-[160px] shrink-0 lg:shrink bg-[#06080F] overflow-hidden select-none">
         <div ref={chartContainerRef} className="w-full h-full touch-none select-none" />
 
         {/* RSI 14 Sub-indicator Pane (if toggled) */}
@@ -701,20 +704,35 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         )}
       </div>
 
-      {/* Mobile Scroll Indicator Helper */}
-      <div className="lg:hidden flex items-center justify-between px-3 py-1 bg-[#0A0E1A]/80 border-y border-slate-800/80 text-[10px] font-mono text-slate-400 shrink-0">
+      {/* Mobile & Small Screen Scroll Indicator Helper */}
+      <div 
+        onClick={() => {
+          const el = document.getElementById('technical-bottom-panel');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }}
+        className="lg:hidden flex items-center justify-between px-3 py-1 bg-[#0A0E1A]/90 border-y border-slate-800/80 text-[10px] font-mono text-slate-400 shrink-0 cursor-pointer hover:bg-slate-800/40 transition-colors"
+      >
         <span className="flex items-center gap-1.5 text-[#00F0FF]">
           <span className="h-1.5 w-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
           <span className="font-semibold">Level Kunci, Sinyal & Matriks</span>
         </span>
-        <span className="text-slate-400">↓ Gulir ke bawah</span>
+        <span className="text-[#00F0FF] flex items-center gap-1 font-semibold">↓ Ketuk untuk melihat</span>
       </div>
 
       {/* Bottom Sub-panel: Pure Technical Analysis & Multi-Pair Signal Screener */}
-      <div className={`border-t border-slate-800/80 bg-[#090D18] flex flex-col transition-all duration-200 shrink-0 ${isBottomCollapsed ? 'h-9' : 'h-auto min-h-[300px] lg:h-64 sm:lg:h-72'} pb-14 lg:pb-0`}>
-        {/* Sub-panel Tabs */}
+      <div 
+        id="technical-bottom-panel"
+        className={`border-t border-slate-800/80 bg-[#090D18] flex flex-col transition-all duration-300 shrink-0 ${
+          isBottomCollapsed 
+            ? 'h-9 overflow-hidden' 
+            : isBottomExpanded 
+            ? 'h-[380px] lg:h-[400px]' 
+            : 'h-[270px] sm:h-[290px] lg:h-[230px] xl:h-[250px]'
+        }`}
+      >
+        {/* Sub-panel Tabs Header */}
         <div className="flex items-center justify-between px-2 sm:px-3 py-1 border-b border-slate-800/70 bg-[#0B0F1C] text-xs">
-          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar max-w-[85%] sm:max-w-none">
+          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar max-w-[75%] sm:max-w-none">
             <button
               onClick={() => {
                 setActiveBottomTab('signals');
@@ -762,16 +780,47 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] font-mono text-slate-400 hidden md:inline">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-mono text-[#00F0FF] hidden md:inline px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700">
               {selectedInstrument.symbol}
             </span>
+
+            {/* Toggle Maximize / Normal Height */}
             <button
-              onClick={() => setIsBottomCollapsed(!isBottomCollapsed)}
-              className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono"
+              onClick={() => {
+                if (isBottomCollapsed) setIsBottomCollapsed(false);
+                setIsBottomExpanded(!isBottomExpanded);
+              }}
+              className={`px-2 py-0.5 rounded transition-all flex items-center gap-1 text-[11px] font-mono border ${
+                isBottomExpanded
+                  ? 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/40 font-bold'
+                  : 'bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white border-slate-800'
+              }`}
+              title={isBottomExpanded ? 'Kembalikan Ukuran Normal' : 'Perbesar Tampilan Panel Bawah'}
+            >
+              {isBottomExpanded ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5 text-[#00F0FF]" />
+                  <span className="hidden sm:inline">Normal</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Perbesar</span>
+                </>
+              )}
+            </button>
+
+            {/* Toggle Collapse / Expand */}
+            <button
+              onClick={() => {
+                setIsBottomCollapsed(!isBottomCollapsed);
+                if (isBottomExpanded) setIsBottomExpanded(false);
+              }}
+              className="px-2 py-0.5 rounded bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors flex items-center gap-1 text-[11px] font-mono"
               title={isBottomCollapsed ? 'Buka Panel' : 'Minimalkan Panel'}
             >
-              <span className="hidden sm:inline">{isBottomCollapsed ? 'Buka' : 'Tutup'}</span>
+              <span className="hidden sm:inline">{isBottomCollapsed ? 'Buka' : 'Sembunyikan'}</span>
               {isBottomCollapsed ? <ChevronUp className="w-3.5 h-3.5 text-[#00F0FF]" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
@@ -779,7 +828,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
 
         {/* Tab 1: Live Signals Screener (Responsive Cards on Mobile / Table on Desktop) */}
         {!isBottomCollapsed && activeBottomTab === 'signals' && (
-          <div className="flex-1 overflow-y-auto p-2 text-xs font-mono">
+          <div className="flex-1 overflow-y-auto p-2 text-xs font-mono custom-scrollbar pb-8 sm:pb-3">
             {/* Mobile Card Layout (< sm screens) */}
             <div className="sm:hidden space-y-2">
               {marketSignals.map((sig) => {
@@ -833,60 +882,62 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
             </div>
 
             {/* Desktop Table Layout (>= sm screens) */}
-            <div className="hidden sm:block">
-              <div className="grid grid-cols-7 text-[10px] uppercase text-slate-400 px-2 py-1 border-b border-slate-800/60">
-                <span>Pair / Arah</span>
-                <span>TF</span>
-                <span className="col-span-2">Pola Setup</span>
-                <span>Harga Masuk</span>
-                <span>Target (TP)</span>
-                <span className="text-right">Aksi</span>
-              </div>
-              <div className="space-y-1 mt-1">
-                {marketSignals.map((sig) => {
-                  const isCurrent = sig.symbol === selectedInstrument.symbol;
-                  const isBull = sig.direction === 'BULLISH';
-                  return (
-                    <div
-                      key={sig.id}
-                      className={`grid grid-cols-7 items-center px-2 py-1.5 rounded border transition-colors ${
-                        isCurrent
-                          ? 'bg-slate-800/80 border-blue-500/40'
-                          : 'bg-[#0B0F1C] border-slate-800/80 hover:bg-slate-800/40'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 font-bold">
-                        <span className="text-white">{sig.symbol}</span>
-                        <span
-                          className={`text-[9px] px-1 py-0.2 rounded font-mono ${
-                            isBull
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : sig.direction === 'BEARISH'
-                              ? 'bg-rose-500/20 text-rose-400'
-                              : 'bg-amber-500/20 text-amber-400'
-                          }`}
-                        >
-                          {sig.direction}
-                        </span>
+            <div className="hidden sm:block overflow-x-auto custom-scrollbar">
+              <div className="min-w-[560px]">
+                <div className="grid grid-cols-7 text-[10px] uppercase text-slate-400 px-2 py-1.5 border-b border-slate-800/80 sticky top-0 bg-[#090D18] z-10 backdrop-blur-sm">
+                  <span>Pair / Arah</span>
+                  <span>TF</span>
+                  <span className="col-span-2">Pola Setup</span>
+                  <span>Harga Masuk</span>
+                  <span>Target (TP)</span>
+                  <span className="text-right">Aksi</span>
+                </div>
+                <div className="space-y-1 mt-1">
+                  {marketSignals.map((sig) => {
+                    const isCurrent = sig.symbol === selectedInstrument.symbol;
+                    const isBull = sig.direction === 'BULLISH';
+                    return (
+                      <div
+                        key={sig.id}
+                        className={`grid grid-cols-7 items-center px-2 py-1.5 rounded border transition-colors ${
+                          isCurrent
+                            ? 'bg-slate-800/80 border-blue-500/40'
+                            : 'bg-[#0B0F1C] border-slate-800/80 hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span className="text-white">{sig.symbol}</span>
+                          <span
+                            className={`text-[9px] px-1 py-0.2 rounded font-mono ${
+                              isBull
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : sig.direction === 'BEARISH'
+                                ? 'bg-rose-500/20 text-rose-400'
+                                : 'bg-amber-500/20 text-amber-400'
+                            }`}
+                          >
+                            {sig.direction}
+                          </span>
+                        </div>
+                        <span className="text-slate-300 font-semibold">{sig.timeframe}</span>
+                        <span className="col-span-2 text-slate-200 truncate pr-2">{sig.setup}</span>
+                        <span className="text-slate-300">${sig.price}</span>
+                        <span className="text-emerald-400 font-semibold">${sig.targetPrice}</span>
+                        <div className="text-right">
+                          <button
+                            onClick={() => {
+                              const found = instruments.find((i) => i.id === sig.instrumentId);
+                              if (found) onSelectInstrument(found);
+                            }}
+                            className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 transition-colors text-[11px]"
+                          >
+                            {isCurrent ? 'Aktif' : 'Buka Pair'}
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-slate-300 font-semibold">{sig.timeframe}</span>
-                      <span className="col-span-2 text-slate-200 truncate pr-2">{sig.setup}</span>
-                      <span className="text-slate-300">${sig.price}</span>
-                      <span className="text-emerald-400 font-semibold">${sig.targetPrice}</span>
-                      <div className="text-right">
-                        <button
-                          onClick={() => {
-                            const found = instruments.find((i) => i.id === sig.instrumentId);
-                            if (found) onSelectInstrument(found);
-                          }}
-                          className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 transition-colors text-[11px]"
-                        >
-                          {isCurrent ? 'Aktif' : 'Buka Pair'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -894,45 +945,127 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
 
         {/* Tab 2: Pivot Points Table (Level Kunci) */}
         {!isBottomCollapsed && activeBottomTab === 'pivots' && (
-          <div className="flex-1 overflow-y-auto p-2 sm:p-3 text-xs font-mono">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
-              <div className="space-y-1.5 bg-[#0B0F1C] p-2.5 rounded border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase block border-b border-slate-800/80 pb-1">
-                  Zona Resistance (Jual / Take Profit)
+          <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 text-xs font-mono space-y-2 custom-scrollbar pb-8 sm:pb-2">
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-[#0B0F1C] px-2.5 py-1.5 rounded-lg border border-slate-800 text-[11px]">
+              <div className="flex items-center justify-between sm:flex-col sm:items-start">
+                <span className="text-[10px] text-slate-400">Harga Sekarang</span>
+                <span className="font-bold text-white">${selectedInstrument.price}</span>
+              </div>
+              <div className="flex items-center justify-between sm:flex-col sm:items-start">
+                <span className="text-[10px] text-slate-400">Pivot Utama (P)</span>
+                <span className="font-bold text-[#00F0FF]">${technical.pivot}</span>
+              </div>
+              <div className="flex items-center justify-between sm:flex-col sm:items-start">
+                <span className="text-[10px] text-slate-400">Posisi thd Pivot</span>
+                <span className={`font-bold ${selectedInstrument.price >= technical.pivot ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {selectedInstrument.price >= technical.pivot ? '▲ Di Atas (+Bullish)' : '▼ Di Bawah (-Bearish)'}
                 </span>
-                <div className="flex justify-between text-rose-400">
-                  <span>Resistance 3 (R3)</span>
-                  <span className="font-semibold">${technical.r3}</span>
+              </div>
+              <div className="flex items-center justify-between sm:flex-col sm:items-start">
+                <span className="text-[10px] text-slate-400">Bias Sentimen</span>
+                <span className={`font-bold ${technical.bias === 'BULLISH' ? 'text-emerald-400' : technical.bias === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}`}>
+                  {technical.bias}
+                </span>
+              </div>
+            </div>
+
+            {/* Pivot Level Zones: 3 Responsive Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {/* Resistance Zone */}
+              <div className="bg-[#0B0F1C] p-2 rounded-lg border border-rose-500/20 space-y-1">
+                <div className="flex items-center justify-between border-b border-rose-500/20 pb-0.5">
+                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
+                    Zona Resistance (Jual / TP)
+                  </span>
+                  <span className="text-[9px] px-1 rounded bg-rose-500/10 text-rose-400">Sell Target</span>
                 </div>
-                <div className="flex justify-between text-rose-400">
-                  <span>Resistance 2 (R2)</span>
-                  <span className="font-semibold">${technical.r2}</span>
-                </div>
-                <div className="flex justify-between text-rose-400/80">
-                  <span>Resistance 1 (R1)</span>
-                  <span>${technical.r1}</span>
+                <div className="space-y-0.5 text-[11px]">
+                  <div className="flex justify-between items-center text-rose-400 bg-rose-500/5 px-1.5 py-0.5 rounded">
+                    <span>Resistance 3 (R3)</span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-bold">${technical.r3}</span>
+                      <span className="text-[9px] text-slate-400">
+                        {((technical.r3 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-rose-400/90 px-1.5 py-0.5">
+                    <span>Resistance 2 (R2)</span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-semibold">${technical.r2}</span>
+                      <span className="text-[9px] text-slate-400">
+                        {((technical.r2 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-rose-400/80 px-1.5 py-0.5">
+                    <span>Resistance 1 (R1)</span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span>${technical.r1}</span>
+                      <span className="text-[9px] text-slate-400">
+                        {((technical.r1 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5 bg-[#0B0F1C] p-2.5 rounded border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase block border-b border-slate-800/80 pb-1">
-                  Pivot & Zona Support (Beli / Stop Loss)
-                </span>
-                <div className="flex justify-between text-blue-400 font-bold bg-slate-800/40 p-1 rounded">
-                  <span>Pivot Point (P)</span>
-                  <span>${technical.pivot}</span>
+              {/* Pivot Equilibrium Center */}
+              <div className="bg-[#0B0F1C] p-2 rounded-lg border border-[#00F0FF]/30 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#00F0FF]/20 pb-0.5">
+                    <span className="text-[10px] font-bold text-[#00F0FF] uppercase tracking-wider">
+                      Titik Keseimbangan (Pivot)
+                    </span>
+                    <span className="text-[9px] px-1 rounded bg-[#00F0FF]/10 text-[#00F0FF]">Equilibrium</span>
+                  </div>
+                  <div className="mt-1.5 py-1.5 px-2 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-center">
+                    <span className="text-[10px] text-slate-300 block">Baseline Pivot Point (P)</span>
+                    <span className="text-lg font-black text-[#00F0FF] font-mono leading-tight">${technical.pivot}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-emerald-400/80">
-                  <span>Support 1 (S1)</span>
-                  <span>${technical.s1}</span>
+                <div className="text-[9px] text-slate-400 text-center bg-slate-900/60 py-1 px-1.5 rounded mt-1">
+                  Garis pembatas tren harian. Di atas pivot memicu ekspansi bullish.
                 </div>
-                <div className="flex justify-between text-emerald-400">
-                  <span>Support 2 (S2)</span>
-                  <span className="font-semibold">${technical.s2}</span>
+              </div>
+
+              {/* Support Zone */}
+              <div className="bg-[#0B0F1C] p-2 rounded-lg border border-emerald-500/20 space-y-1">
+                <div className="flex items-center justify-between border-b border-emerald-500/20 pb-0.5">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                    Zona Support (Beli / SL)
+                  </span>
+                  <span className="text-[9px] px-1 rounded bg-emerald-500/10 text-emerald-400">Buy Zone</span>
                 </div>
-                <div className="flex justify-between text-emerald-400">
-                  <span>Support 3 (S3)</span>
-                  <span className="font-semibold">${technical.s3}</span>
+                <div className="space-y-0.5 text-[11px]">
+                  <div className="flex justify-between items-center text-emerald-400/80 px-1.5 py-0.5">
+                    <span>Support 1 (S1)</span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span>${technical.s1}</span>
+                      <span className="text-[9px] text-slate-400">
+                        {((technical.s1 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-400/90 px-1.5 py-0.5">
+                    <span>Support 2 (S2)</span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-semibold">${technical.s2}</span>
+                      <span className="text-[9px] text-slate-400">
+                        {((technical.s2 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-400 bg-emerald-500/5 px-1.5 py-0.5 rounded">
+                    <span>Support 3 (S3)</span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-bold">${technical.s3}</span>
+                      <span className="text-[9px] text-slate-400">
+                        {((technical.s3 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -941,11 +1074,11 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
 
         {/* Tab 3: Multi-Timeframe Matrix (Responsive Cards on Mobile / Table on Desktop) */}
         {!isBottomCollapsed && activeBottomTab === 'indicators' && (
-          <div className="flex-1 overflow-y-auto p-2 text-xs font-mono">
+          <div className="flex-1 overflow-y-auto p-2 text-xs font-mono custom-scrollbar pb-8 sm:pb-3">
             {/* Mobile Matrix Card Grid (< sm screens) */}
             <div className="sm:hidden grid grid-cols-2 gap-2">
               {tfMatrix.map((m) => (
-                <div key={m.timeframe} className="p-2 bg-[#0B0F1C] rounded border border-slate-800 space-y-1">
+                <div key={m.timeframe} className="p-2 bg-[#0B0F1C] rounded-lg border border-slate-800 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-white text-xs">{m.timeframe}</span>
                     <span
@@ -977,47 +1110,49 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
             </div>
 
             {/* Desktop Table (>= sm screens) */}
-            <div className="hidden sm:block">
-              <div className="grid grid-cols-5 text-[10px] uppercase text-slate-400 px-2 py-1 border-b border-slate-800/60">
-                <span>Timeframe</span>
-                <span>Tren Utama</span>
-                <span>RSI (14)</span>
-                <span>MACD Status</span>
-                <span className="text-right">Volume Momentum</span>
-              </div>
-              <div className="space-y-1 mt-1">
-                {tfMatrix.map((m) => (
-                  <div
-                    key={m.timeframe}
-                    className="grid grid-cols-5 items-center px-2 py-1.5 bg-[#0B0F1C] rounded border border-slate-800 hover:bg-slate-800/40"
-                  >
-                    <span className="font-bold text-slate-200">{m.timeframe}</span>
-                    <span
-                      className={
-                        m.trend === 'BULLISH'
-                          ? 'text-emerald-400 font-bold'
-                          : m.trend === 'BEARISH'
-                          ? 'text-rose-400 font-bold'
-                          : 'text-amber-400'
-                      }
+            <div className="hidden sm:block overflow-x-auto custom-scrollbar">
+              <div className="min-w-[480px]">
+                <div className="grid grid-cols-5 text-[10px] uppercase text-slate-400 px-2 py-1.5 border-b border-slate-800/80 sticky top-0 bg-[#090D18] z-10 backdrop-blur-sm">
+                  <span>Timeframe</span>
+                  <span>Tren Utama</span>
+                  <span>RSI (14)</span>
+                  <span>MACD Status</span>
+                  <span className="text-right">Volume Momentum</span>
+                </div>
+                <div className="space-y-1 mt-1">
+                  {tfMatrix.map((m) => (
+                    <div
+                      key={m.timeframe}
+                      className="grid grid-cols-5 items-center px-2 py-1.5 bg-[#0B0F1C] rounded border border-slate-800 hover:bg-slate-800/40"
                     >
-                      {m.trend}
-                    </span>
-                    <span className="text-slate-100">{m.rsi}</span>
-                    <span
-                      className={
-                        m.macd === 'POSITIVE'
-                          ? 'text-emerald-400'
-                          : m.macd === 'NEGATIVE'
-                          ? 'text-rose-400'
-                          : 'text-slate-400'
-                      }
-                    >
-                      {m.macd}
-                    </span>
-                    <span className="text-right text-slate-300">{m.volumeTrend}</span>
-                  </div>
-                ))}
+                      <span className="font-bold text-slate-200">{m.timeframe}</span>
+                      <span
+                        className={
+                          m.trend === 'BULLISH'
+                            ? 'text-emerald-400 font-bold'
+                            : m.trend === 'BEARISH'
+                            ? 'text-rose-400 font-bold'
+                            : 'text-amber-400'
+                        }
+                      >
+                        {m.trend}
+                      </span>
+                      <span className="text-slate-100">{m.rsi}</span>
+                      <span
+                        className={
+                          m.macd === 'POSITIVE'
+                            ? 'text-emerald-400'
+                            : m.macd === 'NEGATIVE'
+                            ? 'text-rose-400'
+                            : 'text-slate-400'
+                        }
+                      >
+                        {m.macd}
+                      </span>
+                      <span className="text-right text-slate-300">{m.volumeTrend}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
