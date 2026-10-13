@@ -58,12 +58,24 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
   // --- AI SIGNAL GENERATOR STATE ---
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [generatedSignal, setGeneratedSignal] = useState<GeneratedAISignal | null>(null);
-  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>(() => {
+  const [aiProvider, setAiProvider] = useState<'auto' | '9router' | 'gemini' | 'openai'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('betatech_ai_provider');
-      if (saved === 'openai' || saved === 'gemini') return saved;
+      if (saved === 'auto' || saved === '9router' || saved === 'openai' || saved === 'gemini') return saved;
     }
-    return 'gemini';
+    return 'auto';
+  });
+  const [routerUrl, setRouterUrl] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('betatech_router_url') || 'http://127.0.0.1:20128/v1';
+    }
+    return 'http://127.0.0.1:20128/v1';
+  });
+  const [routerModel, setRouterModel] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('betatech_router_model') || 'auto';
+    }
+    return 'auto';
   });
   const [customApiKey, setCustomApiKey] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -80,6 +92,8 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('betatech_ai_key', customApiKey.trim());
       localStorage.setItem('betatech_ai_provider', aiProvider);
+      localStorage.setItem('betatech_router_url', routerUrl.trim());
+      localStorage.setItem('betatech_router_model', routerModel.trim());
       setKeySavedToast(true);
       setTimeout(() => setKeySavedToast(false), 2500);
       setShowConfigDrawer(false);
@@ -101,6 +115,8 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
           currentPrice: selectedInstrument.price,
           apiKey: customApiKey.trim() || undefined,
           provider: aiProvider,
+          routerUrl: routerUrl.trim() || undefined,
+          model: routerModel.trim() || 'auto',
         }),
       });
 
@@ -257,43 +273,95 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 </div>
 
                 {/* Provider Radio Tabs */}
-                <div className="flex gap-1.5 p-1 bg-black/50 rounded-lg border border-slate-800 text-[10px]">
+                <div className="grid grid-cols-3 gap-1 p-1 bg-black/50 rounded-lg border border-slate-800 text-[10px]">
                   <button
-                    onClick={() => setAiProvider('gemini')}
-                    className={`flex-1 py-1 rounded font-semibold transition-all ${
-                      aiProvider === 'gemini'
-                        ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40'
+                    onClick={() => setAiProvider('auto')}
+                    className={`py-1 rounded font-semibold transition-all ${
+                      aiProvider === 'auto' || aiProvider === '9router'
+                        ? 'bg-[#00F0FF]/25 text-[#00F0FF] border border-[#00F0FF]/40 shadow-sm'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    Gemini 2.0 Flash
+                    ⚡ 9Router OP
+                  </button>
+                  <button
+                    onClick={() => setAiProvider('gemini')}
+                    className={`py-1 rounded font-semibold transition-all ${
+                      aiProvider === 'gemini'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Gemini API
                   </button>
                   <button
                     onClick={() => setAiProvider('openai')}
-                    className={`flex-1 py-1 rounded font-semibold transition-all ${
+                    className={`py-1 rounded font-semibold transition-all ${
                       aiProvider === 'openai'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    OpenAI GPT-4o
+                    OpenAI GPT
                   </button>
                 </div>
+
+                {/* 9Router Specific Controls */}
+                {(aiProvider === 'auto' || aiProvider === '9router') && (
+                  <div className="space-y-1.5 pt-0.5">
+                    <div>
+                      <label className="text-[10px] text-slate-400 block font-mono">
+                        9Router Base URL
+                      </label>
+                      <input
+                        type="text"
+                        value={routerUrl}
+                        onChange={(e) => setRouterUrl(e.target.value)}
+                        placeholder="http://127.0.0.1:20128/v1"
+                        className="w-full px-2.5 py-1 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-[#00F0FF]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block font-mono">
+                        Model AI (Ketik &apos;auto&apos; untuk rotasi OP model)
+                      </label>
+                      <input
+                        type="text"
+                        value={routerModel}
+                        onChange={(e) => setRouterModel(e.target.value)}
+                        placeholder="auto (Claude 5.5, Gemini 3.8, DeepSeek, Grok)"
+                        className="w-full px-2.5 py-1 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-[#00F0FF]"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* API Key Input */}
                 <div className="space-y-1">
                   <label className="text-[10px] text-slate-400 block font-mono">
-                    {aiProvider === 'gemini' ? 'Gemini API Key' : 'OpenAI API Key'} (Opsional)
+                    {aiProvider === 'gemini' 
+                      ? 'Gemini API Key' 
+                      : aiProvider === 'openai' 
+                      ? 'OpenAI API Key' 
+                      : '9Router API Key (Opsional / Auto-Detect)'}
                   </label>
                   <input
                     type="password"
                     value={customApiKey}
                     onChange={(e) => setCustomApiKey(e.target.value)}
-                    placeholder={aiProvider === 'gemini' ? 'AIzaSy...' : 'sk-...'}
+                    placeholder={
+                      aiProvider === 'gemini' 
+                        ? 'AIzaSy...' 
+                        : aiProvider === 'openai' 
+                        ? 'sk-...' 
+                        : 'Auto-detect dari SQLite 9Router lokal'
+                    }
                     className="w-full px-2.5 py-1.5 bg-black/60 text-xs font-mono text-white rounded border border-slate-700 focus:outline-none focus:border-[#00F0FF]"
                   />
                   <p className="text-[9px] text-slate-500 leading-tight">
-                    *Jika dikosongkan, widget otomatis menggunakan Quant Algorithmic Engine internal tanpa error.
+                    {aiProvider === 'auto' || aiProvider === '9router'
+                      ? '*9Router otomatis mendeteksi model paling OP yang sedang aktif & memutar akun tanpa hambatan.'
+                      : '*Jika dikosongkan, widget otomatis menggunakan Quant Algorithmic Engine internal tanpa error.'}
                   </p>
                 </div>
 

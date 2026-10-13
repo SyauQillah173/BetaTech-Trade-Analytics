@@ -1,7 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
+import path from 'node:path';
+import fs from 'node:fs';
 import { CandleData, GeneratedAISignal } from '../../../types/market';
 import { analyzeTechnicalIndicators } from '../../../lib/indicators';
 import { generateCandleData } from '../../../data/mockData';
+
+// Helper: Temukan API Key 9Router dari environment atau database SQLite lokal secara otomatis
+function discover9RouterKey(): string {
+  if (process.env.NINE_ROUTER_KEY) return process.env.NINE_ROUTER_KEY;
+  if (process.env.ROUTER_API_KEY) return process.env.ROUTER_API_KEY;
+
+  try {
+    const appData = process.env.APPDATA;
+    if (appData) {
+      const dbPath = path.join(appData, '9router', 'db', 'data.sqlite');
+      if (fs.existsSync(dbPath)) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { DatabaseSync } = require('node:sqlite');
+        const db = new DatabaseSync(dbPath, { readOnly: true });
+        const row = db.prepare('SELECT key FROM apiKeys WHERE isActive = 1 LIMIT 1').get() as { key?: string } | undefined;
+        if (row?.key) return row.key;
+      }
+    }
+  } catch {
+    // Ignore fallback
+  }
+  return '';
+}
+
+// Helper: Eksekusi analisis via 9Router dengan auto-rotation ke model yang paling OP
+async function executeAuto9Router(
+  systemPrompt: string,
+  apiKey?: string,
+  baseUrl: string = 'http://127.0.0.1:20128/v1',
+  preferredModel?: string
+): Promise<{ parsed: Record<string, unknown>; usedModel: string } | null> {
+  const routerKey = apiKey || discover9RouterKey();
+  const url = baseUrl.endsWith('/v1') ? baseUrl : `${baseUrl}/v1`;
+
+  // 1. Ambil daftar model aktif yang terhubung ke 9Router
+  let activeModels: string[] = [];
+  try {
+    const modelsRes = await fetch(`${url}/models`, {
+      headers: routerKey ? { Authorization: `Bearer ${routerKey}` } : {},
+      cache: 'no-store',
+    });
+    if (modelsRes.ok) {
+      const json = await modelsRes.json();
+      activeModels = (json.data || []).map((m: { id: string }) => m.id);
+    }
+  } catch {
+    // Jika fetch models gagal, gunakan fallback model
+  }
+
+  // 2. Daftar prioritas Model AI paling OP & kapabel
+  const opPriority = [
+    'ag/claude-sonnet-5-5-high',
+    'ag/gemini-3.8-flash-high',
+    'bs/deepseek-v4.1-flash',
+    'beatapi/gemini-3.8-flash-free',
+    'ag/gemini-3.8-flash',
+    'beatapi/claude-opus-5-5',
+    'gcli/grok-4.7',
+    'bs/deepseek-3.2',
+    'ag/gemini-3.7-flash-high',
+    'bs/claude-sonnet-4-5',
+  ];
+
+  let candidateModels: string[] = [];
+  if (preferredModel && preferredModel !== 'auto') {
+    candidateModels = [preferredModel, ...opPriority.filter((m) => m !== preferredModel)];
+  } else if (activeModels.length > 0) {
+    candidateModels = [
+      ...opPriority.filter((m) => activeModels.includes(m)),
+      ...activeModels.filter((m) => !opPriority.includes(m)),
+    ];
+  } else {
+    candidateModels = opPriority;
+  }
+
+  // 3. Coba model secara berurutan sampai menemukan yang aktif & merespons
+  for (const model of candidateModels.slice(0, 5)) {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (routerKey) headers.Authorization = `Bearer ${routerKey}`;
+
+      const res = await fetch(`${url}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an institutional quantitative trading AI. Output raw JSON only matching schema.',
+            },
+            {
+              role: 'user',
+              content: systemPrompt,
+            },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.15,
+          stream: false,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (content) {
+          const cleanText = content.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanText) as Record<string, unknown>;
+          return { parsed, usedModel: model };
+        }
+      }
+    } catch {
+      // Coba model kandidat berikutnya
+    }
+  }
+
+  return null;
+}
 
 // Helper: ambil data candlestick riil (dari Binance untuk kripto, Yahoo Finance untuk Forex) atau fallback deterministik
 async function fetchRealOrFallbackCandles(
@@ -116,7 +236,9 @@ export async function POST(req: NextRequest) {
     const timeframe: string = (body.timeframe as string) || '1h';
     const currentPrice: number = (body.currentPrice as number) || (symbol.includes('EUR') ? 1.0846 : 89420.50);
     const userApiKey: string | undefined = body.apiKey as string | undefined;
-    const provider: 'gemini' | 'openai' = (body.provider as 'gemini' | 'openai') || 'gemini';
+    const provider: string = (body.provider as string) || 'auto';
+    const preferredModel: string | undefined = body.model as string | undefined;
+    const routerBaseUrl: string | undefined = body.routerUrl as string | undefined;
 
     // 1. Ambil / validasi data candlestick OHLCV (Gunakan data riil chart jika dikirim, atau fetch dari Binance)
     let candles = body.candles as CandleData[] | undefined;
@@ -210,10 +332,76 @@ OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
     const openaiKey = userApiKey || process.env.OPENAI_API_KEY;
 
     let aiResult: GeneratedAISignal | null = null;
-    let usedProvider: 'gemini' | 'openai' | 'algo-engine' = 'algo-engine';
+    let usedProvider: string = 'algo-engine';
 
-    // 4A. Eksekusi via Gemini API jika key tersedia
-    if (provider === 'gemini' && geminiKey) {
+    // 4A. Eksekusi via 9Router (Multi-Model Auto-Rotation ke AI paling OP)
+    if (provider === 'auto' || provider === '9router') {
+      try {
+        const routerResult = await executeAuto9Router(
+          systemPrompt,
+          userApiKey,
+          routerBaseUrl,
+          preferredModel
+        );
+
+        if (routerResult && routerResult.parsed) {
+          const parsed = routerResult.parsed;
+          const parsedSignal: 'BUY' | 'SELL' | 'WAIT' =
+            parsed.signal === 'BUY' || parsed.signal === 'SELL' || parsed.signal === 'WAIT'
+              ? parsed.signal
+              : recommendedSignal;
+
+          let targetPrice = Number(parsed.targetPrice) || algoTarget;
+          let stopLoss = Number(parsed.stopLoss) || algoStop;
+
+          // Validasi integritas arah SL & TP
+          if (parsedSignal === 'BUY' && (stopLoss >= currentPrice || targetPrice <= currentPrice)) {
+            stopLoss = algoStop;
+            targetPrice = algoTarget;
+          } else if (parsedSignal === 'SELL' && (stopLoss <= currentPrice || targetPrice >= currentPrice)) {
+            stopLoss = algoStop;
+            targetPrice = algoTarget;
+          }
+
+          const riskDistance = Math.abs(currentPrice - stopLoss);
+          const rewardDistance = Math.abs(targetPrice - currentPrice);
+          const riskRewardRatio = riskDistance > 0 ? parseFloat((rewardDistance / riskDistance).toFixed(2)) : algoRR;
+
+          aiResult = {
+            signal: parsedSignal,
+            confidence: Math.min(95, Math.max(50, Number(parsed.confidence) || algoConfidence)),
+            targetPrice,
+            stopLoss,
+            riskRewardRatio,
+            reason: String(parsed.reason || algoReason),
+            indicators: {
+              rsi: Number((parsed.indicators as Record<string, unknown>)?.rsi) || rsi,
+              rsiStatus: ((parsed.indicators as Record<string, unknown>)?.rsiStatus as string) || rsiStatus,
+              maShort: Number((parsed.indicators as Record<string, unknown>)?.maShort) || maShort,
+              maLong: Number((parsed.indicators as Record<string, unknown>)?.maLong) || maLong,
+              trend: ((parsed.indicators as Record<string, unknown>)?.trend as string) || trend,
+              macd,
+              atr,
+              bollinger,
+              confluenceScore,
+              support,
+              resistance,
+            },
+            symbol,
+            currentPrice,
+            timeframe,
+            provider: `9Router (${routerResult.usedModel})`,
+            analyzedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          };
+          usedProvider = `9router/${routerResult.usedModel}`;
+        }
+      } catch (err) {
+        console.warn('9Router execution warning, falling back:', err);
+      }
+    }
+
+    // 4B. Eksekusi via Gemini API jika key tersedia dan 9Router belum berhasil
+    if (!aiResult && (provider === 'gemini' || provider === 'auto') && geminiKey) {
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
         const res = await fetch(geminiUrl, {

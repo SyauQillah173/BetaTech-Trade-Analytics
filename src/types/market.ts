@@ -144,7 +144,7 @@ export interface GeneratedAISignal {
   symbol: string;
   currentPrice: number;
   timeframe: string;
-  provider: 'gemini' | 'openai' | 'algo-engine';
+  provider: '9router' | 'gemini' | 'openai' | 'algo-engine' | string;
   analyzedAt: string;
 }
 
