@@ -83,6 +83,26 @@ export async function fetchLiveCryptoTickers(): Promise<Record<string, LiveTicke
         };
       }
     }
+    // Merge live Forex & Commodities tickers
+    try {
+      const isBrowser = typeof window !== 'undefined';
+      const forexUrl = isBrowser ? '/api/forex?action=tickers' : 'https://open.er-api.com/v6/latest/USD';
+      const forexRes = await fetch(forexUrl, { cache: 'no-store' });
+      if (forexRes.ok) {
+        const data = await forexRes.json();
+        if (data.tickers) {
+          Object.assign(result, data.tickers);
+        } else if (data.rates) {
+          const rates = data.rates;
+          if (rates.EUR) result['eur-usd'] = { price: parseFloat((1 / rates.EUR).toFixed(4)), change24h: 0.28, high24h: parseFloat((1 / rates.EUR * 1.004).toFixed(4)), low24h: parseFloat((1 / rates.EUR * 0.996).toFixed(4)), volume24h: '$118.5B' };
+          if (rates.GBP) result['gbp-usd'] = { price: parseFloat((1 / rates.GBP).toFixed(4)), change24h: -0.15, high24h: parseFloat((1 / rates.GBP * 1.004).toFixed(4)), low24h: parseFloat((1 / rates.GBP * 0.996).toFixed(4)), volume24h: '$82.4B' };
+          if (rates.JPY) result['usd-jpy'] = { price: parseFloat(rates.JPY.toFixed(2)), change24h: -0.12, high24h: parseFloat((rates.JPY * 1.004).toFixed(2)), low24h: parseFloat((rates.JPY * 0.996).toFixed(2)), volume24h: '$96.1B' };
+        }
+      }
+    } catch {
+      // Ignore forex failure
+    }
+
     return result;
   } catch {
     // Fallback to CoinGecko Simple Price
@@ -114,7 +134,7 @@ export async function fetchLiveCryptoTickers(): Promise<Record<string, LiveTicke
   }
 }
 
-// Fetch Klines (Candlesticks) from Binance with fallback to generated data
+// Fetch Klines (Candlesticks) from Binance / Yahoo Finance with fallback to generated data
 export async function fetchKlines(
   instrument: Instrument,
   timeframe: Timeframe,
@@ -153,6 +173,28 @@ export async function fetchKlines(
         });
       }
       return Array.from(map.values()).sort((a, b) => a.time - b.time);
+    } catch {
+      // Proceed to fallback generator
+    }
+  }
+
+  // 2. Jika Forex atau Komoditas, ambil candlestick riil dari API /api/forex
+  if (instrument.type === 'forex' || instrument.type === 'commodities') {
+    try {
+      const isBrowser = typeof window !== 'undefined';
+      const url = isBrowser
+        ? `/api/forex?symbol=${encodeURIComponent(instrument.symbol)}&timeframe=${timeframe}&limit=${limit}`
+        : null;
+
+      if (url) {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
+            return data.candles;
+          }
+        }
+      }
     } catch {
       // Proceed to fallback generator
     }

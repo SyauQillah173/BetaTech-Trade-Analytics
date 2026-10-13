@@ -3,16 +3,56 @@ import { CandleData, GeneratedAISignal } from '../../../types/market';
 import { analyzeTechnicalIndicators } from '../../../lib/indicators';
 import { generateCandleData } from '../../../data/mockData';
 
-// Helper: ambil data candlestick riil (dari Binance jika kripto) atau fallback deterministik
+// Helper: ambil data candlestick riil (dari Binance untuk kripto, Yahoo Finance untuk Forex) atau fallback deterministik
 async function fetchRealOrFallbackCandles(
   symbol: string,
   timeframe: string,
   currentPrice: number
 ): Promise<CandleData[]> {
   const cleanSym = symbol.toUpperCase().replace('/', '');
-  const isForex = symbol.includes('EUR') || symbol.includes('GBP') || symbol.includes('JPY') || symbol.includes('AUD');
+  const isForex = symbol.includes('EUR') || symbol.includes('GBP') || symbol.includes('JPY') || symbol.includes('AUD') || symbol.includes('CAD') || symbol.includes('CHF') || symbol.includes('XAU') || symbol.includes('GOLD');
 
-  if (!isForex) {
+  if (isForex) {
+    try {
+      const clean = symbol.toUpperCase().trim();
+      let yahooSymbol = `${clean.replace('/', '')}=X`;
+      if (clean.includes('XAU') || clean.includes('GOLD')) yahooSymbol = 'GC=F';
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1h&range=5d`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        const result = data?.chart?.result?.[0];
+        const timestamps: number[] = result?.timestamp || [];
+        const quote = result?.indicators?.quote?.[0] || {};
+        const opens = quote.open || [];
+        const highs = quote.high || [];
+        const lows = quote.low || [];
+        const closes = quote.close || [];
+        const volumes = quote.volume || [];
+
+        const realCandles: CandleData[] = [];
+        for (let i = 0; i < timestamps.length; i++) {
+          if (opens[i] != null && closes[i] != null && highs[i] != null && lows[i] != null) {
+            realCandles.push({
+              time: new Date(timestamps[i] * 1000).toISOString().slice(11, 16),
+              timestamp: timestamps[i],
+              open: opens[i],
+              high: highs[i],
+              low: lows[i],
+              close: closes[i],
+              volume: volumes[i] || 1000,
+              color: closes[i] >= opens[i] ? 'bull' : 'bear',
+            });
+          }
+        }
+        if (realCandles.length >= 15) {
+          return realCandles.slice(-50);
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  } else {
     try {
       const binanceSymbol = cleanSym.endsWith('USDT')
         ? cleanSym
