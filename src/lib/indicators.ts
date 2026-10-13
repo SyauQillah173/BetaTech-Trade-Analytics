@@ -1,4 +1,5 @@
 import { CandleData } from '../types/market';
+import { generateICTMasterAnalysis, ICTConfluenceReport } from './ictEngine';
 
 /**
  * Institutional-Grade Technical Indicator Suite
@@ -39,6 +40,7 @@ export interface TechnicalAnalysisResult {
   riskRewardRatio: number;
   reason: string;
   currentPrice: number;
+  ict?: ICTConfluenceReport;
 }
 
 /**
@@ -349,63 +351,58 @@ export function analyzeTechnicalIndicators(
 
   confluenceScore = Math.max(-100, Math.min(100, confluenceScore));
 
-  // 6. Keputusan Sinyal Akhir & Confidence
+  // 6. Master ICT Smart Money Concepts Analysis (79Trades Curriculum)
+  const ict = generateICTMasterAnalysis(candles, decimals);
+
+  // Keputusan Sinyal Akhir & Confidence dengan Filter ICT Anti-Stop Loss
   let recommendedSignal: 'BUY' | 'SELL' | 'WAIT' = 'WAIT';
   let confidence = 65;
-
-  if (confluenceScore >= 35) {
-    recommendedSignal = 'BUY';
-    confidence = Math.min(94, Math.max(74, Math.round(62 + Math.abs(confluenceScore) * 0.32)));
-  } else if (confluenceScore <= -35) {
-    recommendedSignal = 'SELL';
-    confidence = Math.min(94, Math.max(74, Math.round(62 + Math.abs(confluenceScore) * 0.32)));
-  } else {
-    recommendedSignal = 'WAIT';
-    confidence = Math.min(74, Math.max(58, Math.round(58 + (35 - Math.abs(confluenceScore)) * 0.4)));
-  }
-
-  // 7. Dynamic ATR & Support/Resistance Risk-to-Reward (R:R >= 1.6)
-  const effectiveAtr = atr > 0 ? atr : currentPrice * 0.015;
-  const atrBuffer = Math.max(effectiveAtr * 1.5, currentPrice * (decimals === 4 ? 0.0015 : 0.006));
-
   let stopLoss = 0;
   let targetPrice = 0;
-  let riskRewardRatio = 1.85;
+  let riskRewardRatio = 2.0;
+  let reason = '';
 
-  if (recommendedSignal === 'BUY') {
-    const slCandidate = Math.min(currentPrice - atrBuffer, support * 0.998);
-    stopLoss = roundVal(slCandidate > 0 ? slCandidate : currentPrice * 0.985);
-    const riskDistance = currentPrice - stopLoss;
-    const targetCandidate = Math.max(currentPrice + riskDistance * 1.85, resistance * 1.002);
-    targetPrice = roundVal(targetCandidate);
-    riskRewardRatio = riskDistance > 0 ? parseFloat(((targetPrice - currentPrice) / riskDistance).toFixed(2)) : 1.85;
-  } else if (recommendedSignal === 'SELL') {
-    const slCandidate = Math.max(currentPrice + atrBuffer, resistance * 1.002);
-    stopLoss = roundVal(slCandidate);
-    const riskDistance = stopLoss - currentPrice;
-    const targetCandidate = Math.min(currentPrice - riskDistance * 1.85, support * 0.998);
-    targetPrice = roundVal(targetCandidate > 0 ? targetCandidate : currentPrice * 0.97);
-    riskRewardRatio = riskDistance > 0 ? parseFloat(((currentPrice - targetPrice) / riskDistance).toFixed(2)) : 1.85;
-  } else {
+  const effectiveAtr = atr > 0 ? atr : currentPrice * 0.015;
+
+  // Skenario 1: ICT Menyarankan WAIT (Chop / No Liquidity / Dilarang Buy di Premium / Dilarang Sell di Diskon)
+  if (ict.smartMoneySignal === 'WAIT') {
+    recommendedSignal = 'WAIT';
+    confidence = Math.min(75, Math.max(50, ict.confidence));
+    stopLoss = roundVal(ict.suggestedStopLoss || support);
+    targetPrice = roundVal(ict.suggestedTP1 || resistance);
+    riskRewardRatio = 1.0;
+    reason = `[FILTER ANTI-SL: ${ict.setupName}] ${ict.rationale}`;
+  }
+  // Skenario 2: Konfluensi BUY (Indikator Bullish + ICT Diskon & Daily Bias)
+  else if (ict.smartMoneySignal === 'BUY' && confluenceScore >= 10) {
+    recommendedSignal = 'BUY';
+    confidence = Math.min(96, Math.max(76, Math.round(ict.confidence * (confluenceScore >= 35 ? 1.05 : 0.98))));
+    stopLoss = roundVal(ict.suggestedStopLoss);
+    targetPrice = roundVal(ict.suggestedTP1);
+    riskRewardRatio = ict.riskRewardRatio;
+
+    const sessionTag = ict.killzone.isKillzone ? `⚡ ${ict.killzone.sessionName}` : ict.killzone.sessionName;
+    reason = `[${sessionTag} | ${ict.setupName}] Daily Bias ${ict.dailyBias.bias} (${ict.dailyBias.biasModel}). Berada di ${ict.premiumDiscount.currentZone} (${ict.premiumDiscount.discountPct}% range). SL institusional aman di $${stopLoss} (di bawah invalidasi low). Target ERL High $${targetPrice} (R:R 1:${riskRewardRatio}).`;
+  }
+  // Skenario 3: Konfluensi SELL (Indikator Bearish + ICT Premium & Daily Bias)
+  else if (ict.smartMoneySignal === 'SELL' && confluenceScore <= -10) {
+    recommendedSignal = 'SELL';
+    confidence = Math.min(96, Math.max(76, Math.round(ict.confidence * (confluenceScore <= -35 ? 1.05 : 0.98))));
+    stopLoss = roundVal(ict.suggestedStopLoss);
+    targetPrice = roundVal(ict.suggestedTP1);
+    riskRewardRatio = ict.riskRewardRatio;
+
+    const sessionTag = ict.killzone.isKillzone ? `⚡ ${ict.killzone.sessionName}` : ict.killzone.sessionName;
+    reason = `[${sessionTag} | ${ict.setupName}] Daily Bias ${ict.dailyBias.bias} (${ict.dailyBias.biasModel}). Berada di ${ict.premiumDiscount.currentZone} (${ict.premiumDiscount.discountPct}% range). SL institusional aman di $${stopLoss} (di atas invalidasi high). Target ERL Low $${targetPrice} (R:R 1:${riskRewardRatio}).`;
+  }
+  // Skenario 4: Sinyal Bertentangan (Indikator vs ICT) -> Lindungi Modal (WAIT)
+  else {
+    recommendedSignal = 'WAIT';
+    confidence = 60;
     stopLoss = roundVal(support);
     targetPrice = roundVal(resistance);
     riskRewardRatio = 1.0;
-  }
-
-  // 8. Reason Analisis Kuantitatif Profesional
-  let reason = '';
-  if (recommendedSignal === 'BUY') {
-    const factorRsi = rsi <= 35 ? `RSI oversold di ${rsi}` : `RSI ${rsi} mengonfirmasi momentum beli`;
-    const factorMacd = macd.histogram > 0 ? `MACD histogram positif (+${macd.histogram})` : `MACD mendekati crossing positif`;
-    const factorTrend = currentPrice > maShort ? `harga stabil di atas EMA20 (${maShort})` : `rebound kuat dari support ${support}`;
-    reason = `Konfluensi bullish solid (Skor ${confluenceScore}): ${factorRsi}, ${factorMacd}, dan ${factorTrend}. Setup R:R 1:${riskRewardRatio} terukur menuju target ${targetPrice}.`;
-  } else if (recommendedSignal === 'SELL') {
-    const factorRsi = rsi >= 65 ? `RSI overbought di ${rsi}` : `RSI ${rsi} mengindikasikan pelemahan buyer`;
-    const factorMacd = macd.histogram < 0 ? `MACD histogram negatif (${macd.histogram})` : `momentum bearish meningkat`;
-    const factorTrend = currentPrice < maShort ? `penolakan di bawah EMA20 (${maShort})` : `penolakan di resistance ${resistance}`;
-    reason = `Konfluensi bearish solid (Skor ${confluenceScore}): ${factorRsi}, ${factorMacd}, dan ${factorTrend}. Proteksi stop loss di ${stopLoss} (R:R 1:${riskRewardRatio}).`;
-  } else {
-    reason = `Sinyal NETRAL / WAIT (Skor ${confluenceScore}): Indikator berada dalam fase konsolidasi (RSI ${rsi}, MACD ${macd.histogram}). Menunggu konfirmasi penembusan valid dari range ${support} - ${resistance}.`;
+    reason = `[KONSOLIDASI / WAIT] Indikator teknikal (${confluenceScore >= 0 ? 'Bullish' : 'Bearish'}) bertentangan dengan struktur ICT (${ict.dailyBias.bias} di ${ict.premiumDiscount.currentZone}). Menunggu konfirmasi arah yang lebih bersih untuk menghindari false breakout.`;
   }
 
   return {
@@ -428,5 +425,6 @@ export function analyzeTechnicalIndicators(
     riskRewardRatio,
     reason,
     currentPrice,
+    ict,
   };
 }

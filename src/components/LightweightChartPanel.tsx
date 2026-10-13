@@ -10,6 +10,13 @@ import {
   ChevronUp,
   Maximize2,
   Minimize2,
+  ShieldCheck,
+  Target,
+  Clock,
+  Flame,
+  CheckCircle2,
+  AlertTriangle,
+  Compass
 } from 'lucide-react';
 import {
   createChart,
@@ -25,7 +32,7 @@ import {
   LineStyle,
   UTCTimestamp,
 } from 'lightweight-charts';
-import { Instrument, Timeframe } from '../types/market';
+import { Instrument, Timeframe, CandleData } from '../types/market';
 import { useInstrumentKlines } from '../hooks/useMarketData';
 import { calculateEMA, calculateRSI } from '../services/marketApi';
 import { 
@@ -33,6 +40,7 @@ import {
   getTechnicalOverview, 
   getTimeframeMatrix 
 } from '../services/signalEngine';
+import { generateICTMasterAnalysis } from '../lib/ictEngine';
 
 export interface MainChartPanelProps {
   instruments: Instrument[];
@@ -54,7 +62,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const [showEMA50, setShowEMA50] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [showRSI, setShowRSI] = useState(false);
-  const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'pivots' | 'indicators'>('signals');
+  const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'pivots' | 'ict' | 'indicators'>('signals');
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [isBottomExpanded, setIsBottomExpanded] = useState(false);
 
@@ -84,6 +92,19 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const technical = useMemo(() => getTechnicalOverview(selectedInstrument), [selectedInstrument]);
   const tfMatrix = useMemo(() => getTimeframeMatrix(selectedInstrument), [selectedInstrument]);
   const marketSignals = useMemo(() => generateMarketSignals(instruments), [instruments]);
+  const ictMaster = useMemo(() => {
+    if (!candles || candles.length < 5) return null;
+    const formattedCandles: CandleData[] = candles.map((c) => ({
+      time: new Date(c.time * 1000).toISOString(),
+      timestamp: c.time,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+      volume: c.volume,
+    }));
+    return generateICTMasterAnalysis(formattedCandles);
+  }, [candles]);
 
   // Hover crosshair metadata state
   const [hoveredData, setHoveredData] = useState<{
@@ -766,6 +787,21 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
             </button>
             <button
               onClick={() => {
+                setActiveBottomTab('ict');
+                if (isBottomCollapsed) setIsBottomCollapsed(false);
+              }}
+              className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+                activeBottomTab === 'ict' && !isBottomCollapsed
+                  ? 'bg-slate-800 text-[#00F0FF] border border-[#00F0FF]/40 font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#00F0FF]" />
+              <span className="sm:hidden">🏛️ SMC</span>
+              <span className="hidden sm:inline">SMC & ICT (Anti-SL)</span>
+            </button>
+            <button
+              onClick={() => {
                 setActiveBottomTab('indicators');
                 if (isBottomCollapsed) setIsBottomCollapsed(false);
               }}
@@ -1065,6 +1101,193 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                         {((technical.s3 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Smart Money Concepts (SMC) & ICT Institutional Anti-SL Framework */}
+        {!isBottomCollapsed && activeBottomTab === 'ict' && (
+          <div className="flex-1 overflow-y-auto p-2 sm:p-3 text-xs font-mono space-y-2.5 custom-scrollbar pb-8 sm:pb-3">
+            {/* Quick Metrics Bar: Killzone, Bias, Zone & Signal */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 bg-[#0B0F1C] p-2 rounded-lg border border-slate-800 text-[11px]">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-400 flex items-center gap-1 font-sans">
+                  <Clock className="w-3 h-3 text-[#00F0FF]" /> Sesi / Killzone
+                </span>
+                <span className="font-bold text-white mt-0.5 truncate">
+                  {ictMaster?.killzone.sessionName || technical.killzoneName || 'Global Market'}
+                </span>
+                <span className="text-[9px] text-[#00F0FF]">
+                  NY Time: {ictMaster?.killzone.currentNYTime || '04:00:00 EST'}
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-400 flex items-center gap-1 font-sans">
+                  <Target className="w-3 h-3 text-amber-400" /> Daily Bias (PDH/PDL)
+                </span>
+                <span className={`font-bold mt-0.5 ${
+                  (ictMaster?.dailyBias.bias || technical.bias) === 'BULLISH'
+                    ? 'text-emerald-400'
+                    : (ictMaster?.dailyBias.bias || technical.bias) === 'BEARISH'
+                    ? 'text-rose-400'
+                    : 'text-amber-400'
+                }`}>
+                  {ictMaster?.dailyBias.bias || technical.bias}
+                </span>
+                <span className="text-[9px] text-slate-400">
+                  Model: {ictMaster?.dailyBias.biasModel || technical.dailyBiasModel || 'CONTINUATION'}
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-400 flex items-center gap-1 font-sans">
+                  <Compass className="w-3 h-3 text-blue-400" /> Pricing Array (OTE)
+                </span>
+                <span className={`font-bold mt-0.5 ${
+                  (ictMaster?.premiumDiscount.currentZone || technical.premiumDiscountZone) === 'DISCOUNT'
+                    ? 'text-emerald-400'
+                    : (ictMaster?.premiumDiscount.currentZone || technical.premiumDiscountZone) === 'PREMIUM'
+                    ? 'text-rose-400'
+                    : 'text-amber-400'
+                }`}>
+                  {ictMaster?.premiumDiscount.currentZone || technical.premiumDiscountZone || 'EQUILIBRIUM'}
+                </span>
+                <span className="text-[9px] text-slate-400">
+                  Eq (50%): ${ictMaster?.premiumDiscount.equilibrium || technical.pivot}
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-400 flex items-center gap-1 font-sans">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Institutional Signal
+                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                    ictMaster?.smartMoneySignal === 'BUY'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      : ictMaster?.smartMoneySignal === 'SELL'
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  }`}>
+                    {ictMaster?.smartMoneySignal || 'WAIT'}
+                  </span>
+                  {ictMaster && (
+                    <span className="text-[10px] text-slate-400">
+                      R:R 1:{ictMaster.riskRewardRatio}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] text-slate-400">
+                  Akurasi: {ictMaster?.confidence || 75}%
+                </span>
+              </div>
+            </div>
+
+            {/* 2 Grid Columns: Institutional Price Levels & Anti-SL Rules Narrative */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+              {/* Left Column: Liquidity Pools & Levels */}
+              <div className="bg-[#0B0F1C] p-2.5 rounded-lg border border-[#00F0FF]/30 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1">
+                  <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 font-sans">
+                    <Target className="w-3.5 h-3.5 text-[#00F0FF]" />
+                    Pool Likuiditas Eksternal (ERL) & Internal (IRL)
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-mono">
+                    ICT 79Trades Engine
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
+                    <span className="text-slate-400 block font-sans text-[9px]">Buyside Liquidity (PDH):</span>
+                    <span className="text-emerald-400 font-bold text-xs mt-0.5 block">
+                      ${ictMaster?.irlErl.erlHigh || technical.pdh || selectedInstrument.high24h}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {ictMaster?.dailyBias.pdhSwept ? '✓ Telah Di-Sweep' : 'Menunggu Likuiditas'}
+                    </span>
+                  </div>
+
+                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
+                    <span className="text-slate-400 block font-sans text-[9px]">Sellside Liquidity (PDL):</span>
+                    <span className="text-rose-400 font-bold text-xs mt-0.5 block">
+                      ${ictMaster?.irlErl.erlLow || technical.pdl || selectedInstrument.low24h}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {ictMaster?.dailyBias.pdlSwept ? '✓ Telah Di-Sweep' : 'Menunggu Likuiditas'}
+                    </span>
+                  </div>
+
+                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
+                    <span className="text-slate-400 block font-sans text-[9px]">Target TP Institusional:</span>
+                    <span className="text-emerald-300 font-bold text-xs mt-0.5 block">
+                      ${ictMaster?.suggestedTP1 || technical.r1}
+                    </span>
+                    <span className="text-[9px] text-slate-500">Ekspansi Likuiditas ERL</span>
+                  </div>
+
+                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
+                    <span className="text-slate-400 block font-sans text-[9px]">Stop Loss Aman (Anti-SL):</span>
+                    <span className="text-rose-300 font-bold text-xs mt-0.5 block">
+                      ${ictMaster?.suggestedStopLoss || technical.s1}
+                    </span>
+                    <span className="text-[9px] text-slate-500">Di balik OB / Batas Invalidation</span>
+                  </div>
+                </div>
+
+                {/* FVG Midpoint / Consequent Encroachment */}
+                <div className="p-1.5 rounded bg-black/40 border border-slate-800 text-[10px] flex items-center justify-between">
+                  <span className="text-slate-400 font-sans">FVG Consequent Encroachment (50% CE):</span>
+                  <span className="text-amber-300 font-bold">
+                    ${ictMaster?.irlErl.activeIRL ? ictMaster.irlErl.activeIRL.midpoint : technical.fvgMidpoint || technical.pivot}
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Column: Anti-SL Intelligence & 5-Book Rules */}
+              <div className="bg-[#0B0F1C] p-2.5 rounded-lg border border-emerald-500/30 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1">
+                  <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5 font-sans">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    Protokol Anti-SL & Kurikulum 5 Buku ICT
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">
+                    Zero-Chop Filter
+                  </span>
+                </div>
+
+                {/* Setup Narrative */}
+                <div className="p-2 rounded bg-black/50 border border-slate-800 text-[10px] space-y-1">
+                  <div className="text-[#00F0FF] font-bold flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-[#00F0FF]" />
+                    <span>Setup: {ictMaster?.setupName || 'ICT Institutional Alignment'}</span>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed font-sans text-[10px]">
+                    {ictMaster?.rationale || 'Pasar menganalisa struktur ERL & IRL. Menjaga posisi aman dari stop-hunting retail dengan menunggu formasi MSS & CISD valid.'}
+                  </p>
+                </div>
+
+                {/* 4 ICT Execution Commandments to Prevent High SL */}
+                <div className="space-y-1 text-[9px] font-sans text-slate-300">
+                  <div className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Zona Diskon/Premium:</strong> Hanya BUY di Discount (&lt;50%) &amp; SELL di Premium (&gt;50%).</span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Perlindungan SL:</strong> SL diletakkan di luar Order Block/Sweep Wick agar tidak terjilat manipulasi.</span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Filter Jam Chop:</strong> Menghindari eksekusi pada NY Lunch (12:00-13:00) yang rawan stop loss retail.</span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Aturan ERL/IRL:</strong> <em>&quot;Jika tidak ada likuiditas ERL/IRL yang terbentuk = NO TRADE&quot;</em>.</span>
                   </div>
                 </div>
               </div>

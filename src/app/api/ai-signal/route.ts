@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'node:path';
 import fs from 'node:fs';
-import { CandleData, GeneratedAISignal } from '../../../types/market';
+import { CandleData, GeneratedAISignal, ICTSignalData } from '../../../types/market';
 import { analyzeTechnicalIndicators } from '../../../lib/indicators';
 import { generateCandleData } from '../../../data/mockData';
 
@@ -270,6 +270,26 @@ export async function POST(req: NextRequest) {
       reason: algoReason,
     } = indicators;
 
+    const ict = indicators.ict;
+    const ictData: ICTSignalData | undefined = ict ? {
+      dailyBias: ict.dailyBias.bias,
+      biasModel: ict.dailyBias.biasModel,
+      pdh: ict.dailyBias.pdh,
+      pdl: ict.dailyBias.pdl,
+      killzoneName: ict.killzone.sessionName,
+      isKillzoneActive: ict.killzone.isKillzone,
+      isSilverBullet: ict.killzone.isSilverBullet,
+      zone: ict.premiumDiscount.currentZone,
+      discountPct: ict.premiumDiscount.discountPct,
+      fvgTop: ict.activeFVG?.top,
+      fvgBottom: ict.activeFVG?.bottom,
+      fvgMidpoint: ict.activeFVG?.midpoint,
+      orderBlockLevel: ict.activeOB ? (ict.activeOB.type === 'BULLISH_OB' ? ict.activeOB.low : ict.activeOB.high) : undefined,
+      cisdStatus: ict.cisd.status,
+      irlErlTarget: ict.irlErl.targetPrice,
+      setupName: ict.setupName,
+    } : undefined;
+
     // Ringkasan 8 candlestick terakhir untuk konteks prompt
     const recentCandlesText = candles
       .slice(-8)
@@ -279,42 +299,48 @@ export async function POST(req: NextRequest) {
       )
       .join('\n');
 
-    // 3. Prompt Analisis Terstruktur Berbasis Fakta Kuantitatif
-    const systemPrompt = `Anda adalah Sistem Analisis Finansial Kuantitatif & Algoritmik Tingkat Tinggi di "BetaTech Trade Analytics".
-Tugas Anda adalah menghasilkan sinyal trading berpresisi tinggi berdasarkan data pasar candlestick dan indikator teknikal mutakhir.
+    // 3. Prompt Analisis Terstruktur Berbasis Fakta Kuantitatif & ICT Smart Money
+    const systemPrompt = `Anda adalah Sistem Analisis Finansial Kuantitatif & Algoritmik Tingkat Tinggi di "BetaTech Trade Analytics" yang menguasai Smart Money Concepts (SMC) & ICT (Inner Circle Trader) 79Trades.
+Tugas Anda adalah menghasilkan sinyal trading berpresisi tinggi dengan STOP LOSS KETAT DAN AMAN (anti-stop hunt) berdasarkan data pasar candlestick, indikator teknikal, dan struktur ICT.
 
 DATA PASAR TERVERIFIKASI:
-- Simbol / Pair: ${symbol}
-- Timeframe: ${timeframe}
-- Harga Saat Ini: ${currentPrice}
-- RSI (14 period): ${rsi} (${rsiStatus})
-- Moving Average (EMA 20): ${maShort} | (EMA 50): ${maLong} | (EMA Trend): ${ma200}
-- Status Tren MA: ${trend}
-- MACD (12, 26, 9): Histogram ${macd.histogram} (Trend: ${macd.trend})
-- Volatilitas ATR (14): ${atr}
-- Bollinger Bands: Upper ${bollinger.upper} | Middle ${bollinger.middle} | Lower ${bollinger.lower} (%B: ${bollinger.percentB})
+- Simbol / Pair: ${symbol} | Timeframe: ${timeframe} | Harga Saat Ini: ${currentPrice}
+- RSI (14 period): ${rsi} (${rsiStatus}) | MA: EMA20 ${maShort}, EMA50 ${maLong}, EMA200 ${ma200} (${trend})
+- MACD (12, 26, 9): Histogram ${macd.histogram} (${macd.trend}) | ATR (14): ${atr}
 - Support Kunci: ${support} | Resistance Kunci: ${resistance}
-- Skor Konfluensi Algoritma: ${confluenceScore} (-100 sangat bearish s/d +100 sangat bullish)
+- Skor Konfluensi Algoritma: ${confluenceScore} (-100 s/d +100)
+
+STRUKTUR SMART MONEY & ICT 79TRADES:
+- Daily Bias Harian: ${ict?.dailyBias.bias} (${ict?.dailyBias.biasModel})
+- Level Kunci: Previous Day's High (PDH) $${ict?.dailyBias.pdh} | Previous Day's Low (PDL) $${ict?.dailyBias.pdl}
+- Status Sweep: PDH Swept: ${ict?.dailyBias.pdhSwept ? 'YA' : 'TIDAK'} | PDL Swept: ${ict?.dailyBias.pdlSwept ? 'YA' : 'TIDAK'}
+- Sesi & Killzone ICT: ${ict?.killzone.sessionName} (NY Time: ${ict?.killzone.currentNYTime})
+- Silver Bullet Status: ${ict?.killzone.isSilverBullet ? ict.killzone.silverBulletWindow : 'Tidak Aktif'} | Macro: ${ict?.killzone.isMacro ? ict.killzone.macroWindow : 'Tidak Aktif'}
+- Discount / Premium Range: ${ict?.premiumDiscount.currentZone} (${ict?.premiumDiscount.discountPct}% range, Equilibrium $${ict?.premiumDiscount.equilibrium})
+- Optimal Buy Zone: ${ict?.premiumDiscount.isOptimalForBuy ? 'YA (Di Bawah 50% Diskon)' : 'TIDAK (Di Atas 50% Premium)'}
+- Optimal Sell Zone: ${ict?.premiumDiscount.isOptimalForSell ? 'YA (Di Atas 50% Premium)' : 'TIDAK (Di Bawah 50% Diskon)'}
+- Siklus IRL <-> ERL: ${ict?.irlErl.cycleState} (Target: ${ict?.irlErl.nextTargetType} di $${ict?.irlErl.targetPrice})
+- Konfirmasi CISD (Change in the State of Delivery): ${ict?.cisd.type} (${ict?.cisd.status})
+- Active FVG: ${ict?.activeFVG ? `${ict.activeFVG.type} ($${ict.activeFVG.bottom} - $${ict.activeFVG.top})` : 'None'}
+- Active Order Block: ${ict?.activeOB ? `${ict.activeOB.type} ($${ict.activeOB.low} - $${ict.activeOB.high})` : 'None'}
 
 8 CANDLE TERAKHIR:
 ${recentCandlesText}
 
-ATURAN KETAT:
-1. Signal HARUS salah satu dari: ["BUY", "SELL", "WAIT"].
-   - Jika Skor Konfluensi >= 35: sinyal BUY.
-   - Jika Skor Konfluensi <= -35: sinyal SELL.
-   - Jika -34 s/d +34 atau indikator saling bertentangan: sinyal WAIT (konsolidasi, jangan asal spekulasi).
-2. Confidence: Angka bulat 60 sampai 94 (%).
-3. Risk Management & Risk-to-Reward (R:R minimal 1:1.6):
-   - Jika BUY: Stop Loss HARUS di bawah harga saat ini (${currentPrice}) dekat support (${support}) atau 1.5x ATR (${atr}). Target Price HARUS di atas harga saat ini dengan R:R >= 1.6.
-   - Jika SELL: Stop Loss HARUS di atas harga saat ini (${currentPrice}) dekat resistance (${resistance}) atau 1.5x ATR (${atr}). Target Price HARUS di bawah harga saat ini dengan R:R >= 1.6.
-   - Jika WAIT: Stop Loss di level support (${support}), Target Price di level resistance (${resistance}).
-4. Tulis reason: Tepat 1-2 kalimat lugas dan profesional dalam Bahasa Indonesia menjelaskan korelasi konfluensi indikator secara matematis (RSI, MACD, MA, dan S/R).
+ATURAN KETAT ANTI-STOP LOSS INSTITUSIONAL (ICT 79TRADES):
+1. JANGAN PERNAH BUY DI ZONA PREMIUM (>50%) dan JANGAN PERNAH SELL DI ZONA DISKON (<50%). Pelanggaran aturan ini sering menyebabkan Stop Loss retail tersapu. Jika kondisi ini terjadi, WAJIB sinyal "WAIT".
+2. STOP LOSS TIDAK BOLEH ASAL TEBAK:
+   - Jika BUY: Stop Loss WAJIB di bawah invalidasi Order Block atau Liquidity Sweep Low ($${algoStop}).
+   - Jika SELL: Stop Loss WAJIB di atas invalidasi Order Block atau Liquidity Sweep High ($${algoStop}).
+3. TARGET TAKE PROFIT: Arahkan ke External Liquidity Pool (PDH/PDL) atau Fair Value Gap dengan Risk-to-Reward minimal 1:1.8 hingga 1:3.2.
+4. "Jika tidak ada Internal & External Range Liquidity yang terbentuk = NO TRADE" -> sinyal "WAIT".
+5. Confidence: Angka bulat 60 sampai 96 (%).
+6. Tulis reason: Tepat 1-2 kalimat lugas dan profesional dalam Bahasa Indonesia menjelaskan korelasi konfluensi indikator dan ICT (Daily Bias, FVG/OB, Killzone, Discount/Premium).
 
 OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
 {
   "signal": "BUY" | "SELL" | "WAIT",
-  "confidence": 85,
+  "confidence": 88,
   "targetPrice": ${algoTarget},
   "stopLoss": ${algoStop},
   "riskRewardRatio": ${algoRR},
@@ -387,6 +413,7 @@ OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
               support,
               resistance,
             },
+            ict: ictData,
             symbol,
             currentPrice,
             timeframe,
@@ -462,6 +489,7 @@ OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
                 support,
                 resistance,
               },
+              ict: ictData,
               symbol,
               currentPrice,
               timeframe,
@@ -539,6 +567,7 @@ OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
                 support,
                 resistance,
               },
+              ict: ictData,
               symbol,
               currentPrice,
               timeframe,
@@ -575,6 +604,7 @@ OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
           support,
           resistance,
         },
+        ict: ictData,
         symbol,
         currentPrice,
         timeframe,

@@ -59,6 +59,13 @@ export interface TechnicalOverview {
   s1: number;
   s2: number;
   s3: number;
+  pdh?: number;
+  pdl?: number;
+  dailyBiasModel?: string;
+  killzoneName?: string;
+  isKillzone?: boolean;
+  premiumDiscountZone?: string;
+  fvgMidpoint?: number;
 }
 
 export interface AISignal {
@@ -110,6 +117,25 @@ export interface Position {
   timestamp: string;
 }
 
+export interface ICTSignalData {
+  dailyBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  biasModel: string; // 'CONTINUATION' | 'REVERSAL_SWEEP' | 'CONSOLIDATION'
+  pdh: number;
+  pdl: number;
+  killzoneName: string;
+  isKillzoneActive: boolean;
+  isSilverBullet: boolean;
+  zone: string; // 'DISCOUNT' | 'PREMIUM' | 'EQUILIBRIUM'
+  discountPct: number;
+  fvgTop?: number;
+  fvgBottom?: number;
+  fvgMidpoint?: number;
+  orderBlockLevel?: number;
+  cisdStatus?: string;
+  irlErlTarget?: number;
+  setupName?: string;
+}
+
 export interface GeneratedAISignal {
   signal: 'BUY' | 'SELL' | 'WAIT';
   confidence: number;
@@ -141,6 +167,7 @@ export interface GeneratedAISignal {
     support?: number;
     resistance?: number;
   };
+  ict?: ICTSignalData;
   symbol: string;
   currentPrice: number;
   timeframe: string;

@@ -17,7 +17,9 @@ import {
   X,
   Flame,
   Clock,
-  BookOpen
+  BookOpen,
+  ShieldCheck,
+  Target
 } from 'lucide-react';
 import { Instrument, GeneratedAISignal, Timeframe } from '../types/market';
 import { 
@@ -497,6 +499,76 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 </div>
               </div>
 
+              {/* ICT Institutional Flow & Smart Money Intelligence (5 Books 79Trades Concept) */}
+              {generatedSignal.ict && (
+                <div className="p-2.5 rounded-lg bg-[#070D1A] border border-[#00F0FF]/30 space-y-2 font-mono text-[11px]">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#00F0FF]" />
+                      <span className="text-[10px] uppercase font-bold text-slate-200">
+                        SMC & ICT Institutional Matrix
+                      </span>
+                    </div>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      generatedSignal.ict.dailyBias === 'BULLISH'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : generatedSignal.ict.dailyBias === 'BEARISH'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    }`}>
+                      {generatedSignal.ict.dailyBias} ({generatedSignal.ict.biasModel})
+                    </span>
+                  </div>
+
+                  {/* Session / Killzone + Pricing Array */}
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="p-1.5 rounded bg-black/40 border border-slate-800/80">
+                      <span className="text-[9px] text-slate-400 block font-sans">Session / Killzone:</span>
+                      <div className="flex items-center gap-1 text-slate-200 font-semibold mt-0.5 truncate">
+                        <Clock className="w-3 h-3 text-[#00F0FF] shrink-0" />
+                        <span className="truncate">{generatedSignal.ict.killzoneName}</span>
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded bg-black/40 border border-slate-800/80">
+                      <span className="text-[9px] text-slate-400 block font-sans">Pricing Array:</span>
+                      <div className="flex items-center gap-1 font-semibold mt-0.5">
+                        <span className={`text-[10px] ${
+                          generatedSignal.ict.zone === 'DISCOUNT'
+                            ? 'text-emerald-400'
+                            : generatedSignal.ict.zone === 'PREMIUM'
+                            ? 'text-rose-400'
+                            : 'text-amber-400'
+                        }`}>
+                          {generatedSignal.ict.zone} ({generatedSignal.ict.discountPct}%)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Setup & Liquidity Target Pools */}
+                  <div className="text-[10px] bg-black/50 p-2 rounded border border-slate-800/80 space-y-1">
+                    {generatedSignal.ict.setupName && (
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="text-slate-400 font-sans">Institutional Setup:</span>
+                        <span className="text-[#00F0FF] font-bold">{generatedSignal.ict.setupName}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span className="text-slate-400 font-sans">Liquidity Pools:</span>
+                      <span className="text-slate-200">
+                        PDH: <strong className="text-emerald-400">${generatedSignal.ict.pdh}</strong> | PDL: <strong className="text-rose-400">${generatedSignal.ict.pdl}</strong>
+                      </span>
+                    </div>
+                    {generatedSignal.ict.fvgMidpoint && (
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="text-slate-400 font-sans">FVG CE (50%):</span>
+                        <span className="text-amber-300 font-bold">${generatedSignal.ict.fvgMidpoint}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Indikator Snapshot (RSI, Moving Average, MACD, ATR) */}
               <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
                 <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
@@ -576,6 +648,21 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                     ${generatedSignal.stopLoss}
                   </div>
                 </div>
+              </div>
+
+              {/* Anti-SL Institutional Shield Banner */}
+              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Anti-SL Shield (Smart Money Execution)</span>
+                </div>
+                <p className="text-slate-300 text-[10px] leading-relaxed">
+                  {generatedSignal.signal === 'BUY'
+                    ? `Stop Loss ($${generatedSignal.stopLoss}) terlindungi di bawah swing low/Order Block untuk menghindari stop-run likuiditas retail sebelum ekspansi harga ke target ERL.`
+                    : generatedSignal.signal === 'SELL'
+                    ? `Stop Loss ($${generatedSignal.stopLoss}) terlindungi di atas swing high/Order Block untuk mencegah sweep likuiditas retail sebelum ekspansi harga ke target ERL.`
+                    : `Menunggu likuiditas sweep (IRL/ERL) yang valid sebelum eksekusi demi menghindari resiko Stop Loss tersapu.`}
+                </p>
               </div>
 
               {/* Level Kunci: Support & Resistance Terverifikasi */}
@@ -846,6 +933,55 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
               <div className="text-[10px] text-slate-400">EMA Trend (20/50)</div>
               <div className="text-xs font-bold font-mono text-emerald-400 mt-1">{technical.emaTrend}</div>
               <div className="text-[9px] text-slate-400 font-mono mt-1">Ribbon Expansion</div>
+            </div>
+          </div>
+
+          {/* SMC & ICT Institutional Profile (Smart Money Concepts) */}
+          <div className="p-3 bg-[#0B0F1C] border border-[#00F0FF]/30 rounded-lg space-y-2 font-mono text-[10px]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <div className="flex items-center gap-1.5 font-sans font-bold text-slate-200">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#00F0FF]" />
+                <span>SMC & ICT Profile</span>
+              </div>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                technical.bias === 'BULLISH'
+                  ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
+                  : technical.bias === 'BEARISH'
+                  ? 'text-rose-400 bg-rose-500/10 border border-rose-500/30'
+                  : 'text-amber-400 bg-amber-500/10 border border-amber-500/30'
+              }`}>
+                {technical.dailyBiasModel || technical.bias}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-black/40 p-2 rounded border border-slate-800/80">
+                <div className="text-[9px] text-slate-400 uppercase font-sans">PDH (BSL / High 24h)</div>
+                <div className="text-emerald-400 font-bold mt-0.5">${technical.pdh || selectedInstrument.high24h}</div>
+              </div>
+              <div className="bg-black/40 p-2 rounded border border-slate-800/80">
+                <div className="text-[9px] text-slate-400 uppercase font-sans">PDL (SSL / Low 24h)</div>
+                <div className="text-rose-400 font-bold mt-0.5">${technical.pdl || selectedInstrument.low24h}</div>
+              </div>
+            </div>
+
+            <div className="bg-black/40 p-2 rounded border border-slate-800/80 space-y-1">
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="text-slate-400 font-sans">Session / Killzone:</span>
+                <span className="text-[#00F0FF] font-semibold">{technical.killzoneName || 'Global Market Session'}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="text-slate-400 font-sans">Pricing Array:</span>
+                <span className={`font-bold ${
+                  technical.premiumDiscountZone === 'DISCOUNT'
+                    ? 'text-emerald-400'
+                    : technical.premiumDiscountZone === 'PREMIUM'
+                    ? 'text-rose-400'
+                    : 'text-amber-400'
+                }`}>
+                  {technical.premiumDiscountZone || 'EQUILIBRIUM'}
+                </span>
+              </div>
             </div>
           </div>
 

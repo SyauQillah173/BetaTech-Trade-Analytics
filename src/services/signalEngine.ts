@@ -1,4 +1,5 @@
 import { Instrument, MarketSignal, TechnicalOverview } from '../types/market';
+import { getICTKillzoneInfo } from '../lib/ictEngine';
 
 /**
  * Calculate standard pivot points (Floor Trader / Classic)
@@ -29,6 +30,7 @@ export function calculatePivotPoints(high: number, low: number, close: number, d
 export function getTechnicalOverview(instrument: Instrument): TechnicalOverview {
   const { price, high24h, low24h, change24h, decimals } = instrument;
   const pivots = calculatePivotPoints(high24h, low24h, price, decimals);
+  const killzone = getICTKillzoneInfo();
 
   // Dynamic RSI estimate based on 24h change & position in range
   const range = high24h - low24h || 1;
@@ -44,17 +46,32 @@ export function getTechnicalOverview(instrument: Instrument): TechnicalOverview 
   else if (change24h < -1.2 && price < pivots.pivot) emaTrend = 'DOWNTREND';
 
   let bias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
+  let dailyBiasModel = 'CONSOLIDATION';
   let score = 50;
 
-  if (change24h > 0) {
-    score = Math.min(95, Math.round(50 + change24h * 6 + (rangePos > 0.6 ? 10 : 0)));
-    bias = score >= 65 ? 'BULLISH' : 'NEUTRAL';
+  // ICT Daily Bias Framework (PDH / PDL analysis)
+  if (price >= high24h * 0.998) {
+    bias = 'BULLISH';
+    dailyBiasModel = 'CONTINUATION (New High Hunt)';
+    score = 85;
+  } else if (price <= low24h * 1.002) {
+    bias = 'BEARISH';
+    dailyBiasModel = 'CONTINUATION (New Low Hunt)';
+    score = 20;
+  } else if (rangePos > 0.5) {
+    bias = 'BULLISH';
+    dailyBiasModel = 'PREMIUM EXPANSION';
+    score = Math.min(90, Math.round(55 + change24h * 5));
   } else {
-    score = Math.max(10, Math.round(50 + change24h * 6 - (rangePos < 0.4 ? 10 : 0)));
-    bias = score <= 35 ? 'BEARISH' : 'NEUTRAL';
+    bias = 'BEARISH';
+    dailyBiasModel = 'DISCOUNT ACCUMULATION';
+    score = Math.max(15, Math.round(45 + change24h * 5));
   }
 
+  const discountPct = Math.round(rangePos * 100);
+  const premiumDiscountZone = discountPct < 45 ? 'DISCOUNT' : discountPct > 55 ? 'PREMIUM' : 'EQUILIBRIUM';
   const volatilityPct = parseFloat(((range / price) * 100).toFixed(2));
+  const fvgMidpoint = parseFloat(((high24h + low24h) / 2).toFixed(decimals));
 
   return {
     bias,
@@ -63,6 +80,13 @@ export function getTechnicalOverview(instrument: Instrument): TechnicalOverview 
     rsiStatus,
     emaTrend,
     volatilityPct,
+    pdh: high24h,
+    pdl: low24h,
+    dailyBiasModel,
+    killzoneName: killzone.sessionName,
+    isKillzone: killzone.isKillzone,
+    premiumDiscountZone,
+    fvgMidpoint,
     ...pivots,
   };
 }
@@ -123,7 +147,7 @@ export function generateMarketSignals(instruments: Instrument[]): MarketSignal[]
     const pivots = calculatePivotPoints(high24h, low24h, price, decimals);
     const range = high24h - low24h || price * 0.02;
 
-    // Pattern 1: Strong Bullish Momentum or Breakout
+    // Pattern 1: Strong Bullish Momentum or Breakout (ICT Continuation to ERL)
     if (change24h >= 2.0 || price >= high24h * 0.99) {
       signals.push({
         id: `sig-${id}-breakout`,
@@ -131,19 +155,19 @@ export function generateMarketSignals(instruments: Instrument[]): MarketSignal[]
         instrumentId: id,
         assetType: type,
         direction: 'BULLISH',
-        setup: 'Bullish Momentum & Resistance Breakout',
+        setup: 'ICT Bullish Continuation: ERL High Expansion',
         timeframe: '4H',
         strength: change24h > 4 ? 'STRONG' : 'MODERATE',
         price,
-        targetPrice: parseFloat((price + range * 0.8).toFixed(decimals)),
-        invalidationPrice: parseFloat((pivots.pivot).toFixed(decimals)),
+        targetPrice: parseFloat((high24h * 1.018).toFixed(decimals)),
+        invalidationPrice: parseFloat((low24h + range * 0.5).toFixed(decimals)),
         timeAgo: '12m ago',
-        rationale: `Price broke above key intraday pivot (${pivots.r1}) with strong +${change24h}% 24h expansion.`,
-        indicators: ['Volume Spike > 1.8x', 'EMA 20/50 Golden Cross', 'RSI Bullish Expansion'],
+        rationale: `Body candle close di atas PDH ($${high24h}). Konfirmasi struktur continuation menuju Buyside Liquidity (BSL) baru.`,
+        indicators: ['PDH Body Close (BOS)', 'Displacement Volume > 1.8x', 'IRL to ERL Expansion'],
       });
     }
 
-    // Pattern 2: Oversold Rebound Setup
+    // Pattern 2: SSL Liquidity Sweep & Bullish Reversal (Turtle Soup / Reversal Model)
     else if (change24h <= -2.0 || price <= low24h * 1.01) {
       signals.push({
         id: `sig-${id}-oversold`,
@@ -151,19 +175,19 @@ export function generateMarketSignals(instruments: Instrument[]): MarketSignal[]
         instrumentId: id,
         assetType: type,
         direction: 'BULLISH',
-        setup: 'Oversold Support Rejection',
+        setup: 'ICT SSL Sweep & Bullish Reversal (Diskon)',
         timeframe: '1H',
         strength: 'EARLY',
         price,
         targetPrice: parseFloat((pivots.pivot).toFixed(decimals)),
-        invalidationPrice: parseFloat((low24h * 0.992).toFixed(decimals)),
+        invalidationPrice: parseFloat((low24h * 0.994).toFixed(decimals)),
         timeAgo: '28m ago',
-        rationale: `Tested 24h low ($${low24h}) with slowing downside momentum; potential mean reversion toward pivot ($${pivots.pivot}).`,
-        indicators: ['RSI Oversold Divergence', 'Stochastic %K Cross Up', 'Key Support S1 Hold'],
+        rationale: `Sweep likuiditas Sellside (SSL) di bawah PDL ($${low24h}) meninggalkan wick. Harga transisi dari ERL menuju IRL (FVG).`,
+        indicators: ['SSL Liquidity Purge (Wick)', 'Bullish CISD Attempt', 'Deep Discount OTE (79%)'],
       });
     }
 
-    // Pattern 3: Trend Continuation & Pullback Hold
+    // Pattern 3: ICT OTE Discount Retest & Trend Continuation
     else if (change24h > 0.4 && change24h < 2.0) {
       signals.push({
         id: `sig-${id}-trend`,
@@ -171,19 +195,19 @@ export function generateMarketSignals(instruments: Instrument[]): MarketSignal[]
         instrumentId: id,
         assetType: type,
         direction: 'BULLISH',
-        setup: 'EMA 20 Pullback & Continuation',
+        setup: 'ICT OTE & FVG Retest (Discount Zone)',
         timeframe: '1H',
         strength: 'MODERATE',
         price,
         targetPrice: parseFloat(pivots.r2.toFixed(decimals)),
-        invalidationPrice: parseFloat(pivots.s1.toFixed(decimals)),
+        invalidationPrice: parseFloat((pivots.s1 * 0.998).toFixed(decimals)),
         timeAgo: '45m ago',
-        rationale: `Holding above EMA 20 and daily pivot ($${pivots.pivot}). Steady upward structure without overextension.`,
-        indicators: ['EMA 20 Trend Support', 'MACD Above Baseline', 'Higher Lows Structure'],
+        rationale: `Harga tertahan di zona diskon OTE (62%-70.5%) dan memantul dari Bullish Order Block. SL terlindungi di bawah invalidasi low.`,
+        indicators: ['Bullish Order Block (OB)', 'Fair Value Gap (BISI) Hold', 'Daily Bias Bullish'],
       });
     }
 
-    // Pattern 4: Bearish Rejection or Distribution
+    // Pattern 4: BSL Liquidity Sweep & Bearish Reversal
     else if (change24h < -0.4 && change24h > -2.0) {
       signals.push({
         id: `sig-${id}-bearish`,
@@ -191,19 +215,19 @@ export function generateMarketSignals(instruments: Instrument[]): MarketSignal[]
         instrumentId: id,
         assetType: type,
         direction: 'BEARISH',
-        setup: 'Resistance Rejection & Lower High',
+        setup: 'ICT BSL Sweep & Bearish Reversal (Premium)',
         timeframe: '1H',
         strength: 'MODERATE',
         price,
         targetPrice: parseFloat(pivots.s2.toFixed(decimals)),
-        invalidationPrice: parseFloat(pivots.r1.toFixed(decimals)),
+        invalidationPrice: parseFloat((pivots.r1 * 1.002).toFixed(decimals)),
         timeAgo: '1h ago',
-        rationale: `Failed to reclaim daily pivot ($${pivots.pivot}) following London/NY session transition.`,
-        indicators: ['Bearish MACD Histogram', 'RSI Rejection at 55', 'Volume Contracting on Bounces'],
+        rationale: `Penolakan di Zona Premium setelah sweep Buyside Liquidity (BSL). Mengonfirmasi Bearish CISD menuju target Sellside ($${pivots.s2}).`,
+        indicators: ['BSL Sweep Rejection', 'Bearish CISD Triggered', 'Premium Array Rejection'],
       });
     }
 
-    // Pattern 5: Consolidation Squeeze
+    // Pattern 5: Consolidation Squeeze (No Liquidity / Wait)
     else {
       signals.push({
         id: `sig-${id}-squeeze`,
@@ -211,15 +235,15 @@ export function generateMarketSignals(instruments: Instrument[]): MarketSignal[]
         instrumentId: id,
         assetType: type,
         direction: 'NEUTRAL',
-        setup: 'Range Squeeze & Volatility Contraction',
+        setup: 'ICT Liquidity Staging: Inside Range (Wait)',
         timeframe: '15m',
         strength: 'EARLY',
         price,
         targetPrice: parseFloat(pivots.r1.toFixed(decimals)),
         invalidationPrice: parseFloat(pivots.s1.toFixed(decimals)),
         timeAgo: '1h ago',
-        rationale: `Price compressed within tight 0.4% band between $${pivots.s1} and $${pivots.r1}; await breakout confirmation.`,
-        indicators: ['Bollinger Squeeze', 'ADX < 18 (Low Trend)', 'Volume Below 20 MA'],
+        rationale: `Aturan ICT 79Trades: Likuiditas ERL/IRL belum tersapu secara bersih. Wajib DISIPLIN WAIT untuk mencegah Stop Loss false breakout.`,
+        indicators: ['Inside Range Equilibrium', 'No Liquidity Sweep Yet', 'Wait for Killzone Volume'],
       });
     }
   }
