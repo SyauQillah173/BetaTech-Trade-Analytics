@@ -115,12 +115,31 @@ export interface GeneratedAISignal {
   confidence: number;
   targetPrice: number;
   stopLoss: number;
+  riskRewardRatio?: number;
   reason: string;
   indicators: {
     rsi: number;
+    rsiStatus?: string;
     maShort: number;
     maLong: number;
+    maTrend?: string;
     trend: string;
+    macd?: {
+      macd: number;
+      signal: number;
+      histogram: number;
+      trend: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+    };
+    atr?: number;
+    bollinger?: {
+      upper: number;
+      middle: number;
+      lower: number;
+      percentB: number;
+    };
+    confluenceScore?: number;
+    support?: number;
+    resistance?: number;
   };
   symbol: string;
   currentPrice: number;

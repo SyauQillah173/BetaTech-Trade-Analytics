@@ -185,6 +185,8 @@ export default function DashboardPage() {
           <SidePanelRight
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
             onSelectInstrument={handleSelectInstrument}
             onOpenJournal={() => handleOpenJournal()}
             onOpenJournalWithSignal={(signal) => handleOpenJournal(signal)}

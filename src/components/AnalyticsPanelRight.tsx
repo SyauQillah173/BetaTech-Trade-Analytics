@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ArrowUpRight, 
   ArrowDownRight,
@@ -19,7 +19,7 @@ import {
   Clock,
   BookOpen
 } from 'lucide-react';
-import { Instrument, GeneratedAISignal } from '../types/market';
+import { Instrument, GeneratedAISignal, Timeframe } from '../types/market';
 import { 
   generateMarketSignals, 
   getTechnicalOverview, 
@@ -29,6 +29,8 @@ import {
 export interface SidePanelRightProps {
   instruments: Instrument[];
   selectedInstrument: Instrument;
+  timeframe?: Timeframe;
+  onTimeframeChange?: (tf: Timeframe) => void;
   onSelectInstrument: (inst: Instrument) => void;
   onOpenJournal?: () => void;
   onOpenJournalWithSignal?: (signal: GeneratedAISignal) => void;
@@ -37,12 +39,21 @@ export interface SidePanelRightProps {
 export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
   instruments,
   selectedInstrument,
+  timeframe = '1h',
+  onTimeframeChange,
   onSelectInstrument,
   onOpenJournal,
   onOpenJournalWithSignal,
 }) => {
   const [activeTab, setActiveTab] = useState<'ai-signal' | 'signals' | 'technical' | 'market'>('ai-signal');
   const [signalFilter, setSignalFilter] = useState<'all' | 'crypto' | 'forex' | 'bullish' | 'bearish'>('all');
+  const [aiTimeframe, setAiTimeframe] = useState<Timeframe>(timeframe);
+
+  useEffect(() => {
+    if (timeframe) {
+      setAiTimeframe(timeframe);
+    }
+  }, [timeframe]);
 
   // --- AI SIGNAL GENERATOR STATE ---
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -86,7 +97,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
         },
         body: JSON.stringify({
           symbol: selectedInstrument.symbol,
-          timeframe: '1h',
+          timeframe: aiTimeframe,
           currentPrice: selectedInstrument.price,
           apiKey: customApiKey.trim() || undefined,
           provider: aiProvider,
@@ -303,6 +314,32 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
               </div>
             )}
 
+            {/* Timeframe Selector for AI Analysis */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>Timeframe Analisis</span>
+                <span className="text-[#00F0FF] font-bold">{aiTimeframe}</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1 p-0.5 bg-black/50 rounded-lg border border-slate-800 text-[10px] font-mono">
+                {(['15m', '1h', '4h', '1d'] as Timeframe[]).map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => {
+                      setAiTimeframe(tf);
+                      if (onTimeframeChange) onTimeframeChange(tf);
+                    }}
+                    className={`py-1 rounded font-semibold transition-all ${
+                      aiTimeframe === tf
+                        ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Generate AI Trigger Button */}
             <button
               onClick={handleGenerateAISignal}
@@ -312,7 +349,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
               {isAnalyzing ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                  <span>Menganalisis RSI, MA & Candlestick...</span>
+                  <span>Menganalisis Kuantitatif & Candlestick...</span>
                 </>
               ) : (
                 <>
@@ -336,6 +373,11 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                     <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">
                       {generatedSignal.timeframe}
                     </span>
+                    {generatedSignal.riskRewardRatio && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        R:R 1:{generatedSignal.riskRewardRatio}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mt-0.5">
                     <Clock className="w-3 h-3 text-[#00F0FF]" />
@@ -367,10 +409,10 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-400 flex items-center gap-1">
                     <Activity className="w-3 h-3 text-[#00F0FF]" />
-                    Confidence Score
+                    Tingkat Akurasi (Confidence)
                   </span>
                   <span className="font-mono font-bold text-[#00F0FF] text-xs">
-                    {generatedSignal.confidence}% Keyakinan
+                    {generatedSignal.confidence}% Akurat
                   </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -387,7 +429,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 </div>
               </div>
 
-              {/* Indikator Snapshot (RSI & Moving Average) */}
+              {/* Indikator Snapshot (RSI, Moving Average, MACD, ATR) */}
               <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
                 <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
                   <div className="text-[9px] text-slate-400 uppercase font-sans">RSI (14)</div>
@@ -400,7 +442,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                         ? 'text-rose-400 bg-rose-500/10' 
                         : 'text-amber-400 bg-amber-500/10'
                     }`}>
-                      {generatedSignal.indicators.rsi < 35 ? 'Oversold' : generatedSignal.indicators.rsi > 65 ? 'Overbought' : 'Netral'}
+                      {generatedSignal.indicators.rsiStatus || (generatedSignal.indicators.rsi < 35 ? 'Oversold' : generatedSignal.indicators.rsi > 65 ? 'Overbought' : 'Netral')}
                     </span>
                   </div>
                 </div>
@@ -414,6 +456,29 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                     MA50: ${generatedSignal.indicators.maLong}
                   </div>
                 </div>
+
+                {generatedSignal.indicators.macd && (
+                  <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
+                    <div className="text-[9px] text-slate-400 uppercase font-sans">MACD (12, 26, 9)</div>
+                    <div className="flex items-baseline gap-1 mt-0.5">
+                      <span className={`font-bold ${generatedSignal.indicators.macd.histogram >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {generatedSignal.indicators.macd.histogram >= 0 ? '+' : ''}{generatedSignal.indicators.macd.histogram}
+                      </span>
+                      <span className="text-[9px] text-slate-400">
+                        {generatedSignal.indicators.macd.trend}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {generatedSignal.indicators.atr && (
+                  <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
+                    <div className="text-[9px] text-slate-400 uppercase font-sans">Volatilitas (ATR)</div>
+                    <div className="text-slate-200 font-bold mt-0.5 truncate text-[10px]">
+                      ±${generatedSignal.indicators.atr}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Status Tren MA */}

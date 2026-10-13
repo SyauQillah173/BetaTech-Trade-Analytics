@@ -23,7 +23,28 @@ export const CRYPTO_CONFIGS: Record<string, { binanceSymbol: string; coingeckoId
   'eth-usd': { binanceSymbol: 'ETHUSDT', coingeckoId: 'ethereum' },
   'sol-usd': { binanceSymbol: 'SOLUSDT', coingeckoId: 'solana' },
   'bnb-usd': { binanceSymbol: 'BNBUSDT', coingeckoId: 'binancecoin' },
+  'doge-usd': { binanceSymbol: 'DOGEUSDT', coingeckoId: 'dogecoin' },
+  'xrp-usd': { binanceSymbol: 'XRPUSDT', coingeckoId: 'ripple' },
+  'ada-usd': { binanceSymbol: 'ADAUSDT', coingeckoId: 'cardano' },
+  'avax-usd': { binanceSymbol: 'AVAXUSDT', coingeckoId: 'avalanche-2' },
+  'link-usd': { binanceSymbol: 'LINKUSDT', coingeckoId: 'chainlink' },
+  'sui-usd': { binanceSymbol: 'SUIUSDT', coingeckoId: 'sui' },
 };
+
+export function resolveBinanceSymbol(instrument: { id?: string; symbol?: string; type?: string }): string | null {
+  if (instrument.id && CRYPTO_CONFIGS[instrument.id]) {
+    return CRYPTO_CONFIGS[instrument.id].binanceSymbol;
+  }
+  const sym = (instrument.symbol || '').toUpperCase();
+  if (instrument.type === 'crypto' || sym.endsWith('/USD') || sym.endsWith('/USDT')) {
+    const base = sym.split(/[-/_]/)[0];
+    const nonCrypto = ['EUR', 'GBP', 'USD', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU', 'WTI'];
+    if (base && !nonCrypto.includes(base)) {
+      return `${base}USDT`;
+    }
+  }
+  return null;
+}
 
 export function formatVolume(val: number): string {
   if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
@@ -99,9 +120,9 @@ export async function fetchKlines(
   timeframe: Timeframe,
   limit: number = 100
 ): Promise<ChartCandle[]> {
-  const config = CRYPTO_CONFIGS[instrument.id];
+  const binanceSymbol = resolveBinanceSymbol(instrument);
 
-  if (instrument.type === 'crypto' && config) {
+  if (binanceSymbol) {
     try {
       const tfMap: Record<Timeframe, string> = {
         '1m': '1m',
@@ -113,7 +134,7 @@ export async function fetchKlines(
         '1w': '1w',
       };
       const interval = tfMap[timeframe] || '1h';
-      const url = `https://api.binance.com/api/v3/klines?symbol=${config.binanceSymbol}&interval=${interval}&limit=${limit}`;
+      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`;
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Binance klines HTTP ${res.status}`);
 
@@ -172,10 +193,10 @@ export async function fetchKlines(
 export async function fetchOrderBook(
   instrument: Instrument
 ): Promise<{ bids: OrderBookLevel[]; asks: OrderBookLevel[] }> {
-  const config = CRYPTO_CONFIGS[instrument.id];
-  if (instrument.type === 'crypto' && config) {
+  const binanceSymbol = resolveBinanceSymbol(instrument);
+  if (binanceSymbol) {
     try {
-      const url = `https://api.binance.com/api/v3/depth?symbol=${config.binanceSymbol}&limit=8`;
+      const url = `https://api.binance.com/api/v3/depth?symbol=${binanceSymbol}&limit=8`;
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Binance depth HTTP ${res.status}`);
 
@@ -220,10 +241,10 @@ export async function fetchOrderBook(
 export async function fetchRecentTrades(
   instrument: Instrument
 ): Promise<RecentTrade[]> {
-  const config = CRYPTO_CONFIGS[instrument.id];
-  if (instrument.type === 'crypto' && config) {
+  const binanceSymbol = resolveBinanceSymbol(instrument);
+  if (binanceSymbol) {
     try {
-      const url = `https://api.binance.com/api/v3/trades?symbol=${config.binanceSymbol}&limit=12`;
+      const url = `https://api.binance.com/api/v3/trades?symbol=${binanceSymbol}&limit=12`;
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Binance trades HTTP ${res.status}`);
 

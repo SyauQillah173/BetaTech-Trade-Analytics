@@ -3,6 +3,66 @@ import { CandleData, GeneratedAISignal } from '../../../types/market';
 import { analyzeTechnicalIndicators } from '../../../lib/indicators';
 import { generateCandleData } from '../../../data/mockData';
 
+// Helper: ambil data candlestick riil (dari Binance jika kripto) atau fallback deterministik
+async function fetchRealOrFallbackCandles(
+  symbol: string,
+  timeframe: string,
+  currentPrice: number
+): Promise<CandleData[]> {
+  const cleanSym = symbol.toUpperCase().replace('/', '');
+  const isForex = symbol.includes('EUR') || symbol.includes('GBP') || symbol.includes('JPY') || symbol.includes('AUD');
+
+  if (!isForex) {
+    try {
+      const binanceSymbol = cleanSym.endsWith('USDT')
+        ? cleanSym
+        : cleanSym.endsWith('USD')
+        ? cleanSym.replace('USD', 'USDT')
+        : `${cleanSym}USDT`;
+
+      const tfMap: Record<string, string> = {
+        '1m': '1m',
+        '5m': '5m',
+        '15m': '15m',
+        '1h': '1h',
+        '4h': '4h',
+        '1d': '1d',
+        '1w': '1w',
+      };
+      const interval = tfMap[timeframe] || '1h';
+      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) {
+        const rawKlines: Array<[number, string, string, string, string, string]> = await res.json();
+        if (Array.isArray(rawKlines) && rawKlines.length >= 15) {
+          return rawKlines.map((k) => {
+            const timeSec = Math.floor(Number(k[0]) / 1000);
+            const open = parseFloat(k[1]);
+            const high = parseFloat(k[2]);
+            const low = parseFloat(k[3]);
+            const close = parseFloat(k[4]);
+            const volume = parseFloat(k[5]);
+            return {
+              time: new Date(timeSec * 1000).toISOString().slice(11, 16),
+              timestamp: timeSec,
+              open,
+              high,
+              low,
+              close,
+              volume,
+              color: close >= open ? 'bull' : 'bear',
+            };
+          });
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  return generateCandleData(currentPrice, timeframe, 48);
+}
+
 export async function POST(req: NextRequest) {
   try {
     let body: Record<string, unknown> = {};
@@ -18,15 +78,35 @@ export async function POST(req: NextRequest) {
     const userApiKey: string | undefined = body.apiKey as string | undefined;
     const provider: 'gemini' | 'openai' = (body.provider as 'gemini' | 'openai') || 'gemini';
 
-    // 1. Ambil / validasi data candlestick OHLCV terbaru
+    // 1. Ambil / validasi data candlestick OHLCV (Gunakan data riil chart jika dikirim, atau fetch dari Binance)
     let candles = body.candles as CandleData[] | undefined;
     if (!candles || candles.length < 15) {
-      candles = generateCandleData(currentPrice, timeframe, 42);
+      candles = await fetchRealOrFallbackCandles(symbol, timeframe, currentPrice);
     }
 
-    // 2. Analisis indikator teknikal (RSI & Moving Average 20 / 50)
-    const indicators = analyzeTechnicalIndicators(candles);
-    const { rsi, maShort, maLong, trend, support, resistance } = indicators;
+    // 2. Analisis indikator kuantitatif institusional
+    const decimals = symbol.includes('EUR') || symbol.includes('GBP') || symbol.includes('JPY') || currentPrice < 10 ? 4 : 2;
+    const indicators = analyzeTechnicalIndicators(candles, decimals);
+    const {
+      rsi,
+      rsiStatus,
+      maShort,
+      maLong,
+      ma200,
+      trend,
+      macd,
+      atr,
+      bollinger,
+      support,
+      resistance,
+      confluenceScore,
+      recommendedSignal,
+      confidence: algoConfidence,
+      targetPrice: algoTarget,
+      stopLoss: algoStop,
+      riskRewardRatio: algoRR,
+      reason: algoReason,
+    } = indicators;
 
     // Ringkasan 8 candlestick terakhir untuk konteks prompt
     const recentCandlesText = candles
@@ -37,49 +117,55 @@ export async function POST(req: NextRequest) {
       )
       .join('\n');
 
-    // 3. Susun Prompt Analisis Terstruktur untuk LLM
-    const systemPrompt = `Anda adalah Sistem Analisis Finansial Kuantitatif & Algoritmik terkemuka di "BetaTech Trade Analytics".
-Tugas Anda adalah menganalisis data pasar candlestick OHLCV terbaru dan indikator teknikal kunci (RSI dan Moving Average) untuk menghasilkan sinyal trading presisi tinggi.
+    // 3. Prompt Analisis Terstruktur Berbasis Fakta Kuantitatif
+    const systemPrompt = `Anda adalah Sistem Analisis Finansial Kuantitatif & Algoritmik Tingkat Tinggi di "BetaTech Trade Analytics".
+Tugas Anda adalah menghasilkan sinyal trading berpresisi tinggi berdasarkan data pasar candlestick dan indikator teknikal mutakhir.
 
-DATA PASAR:
+DATA PASAR TERVERIFIKASI:
 - Simbol / Pair: ${symbol}
 - Timeframe: ${timeframe}
 - Harga Saat Ini: ${currentPrice}
-- RSI (14 period): ${rsi} (${rsi < 30 ? 'OVERSOLD' : rsi > 70 ? 'OVERBOUGHT' : 'NETRAL'})
-- Moving Average Cepat (EMA 20): ${maShort}
-- Moving Average Lambat (EMA 50): ${maLong}
+- RSI (14 period): ${rsi} (${rsiStatus})
+- Moving Average (EMA 20): ${maShort} | (EMA 50): ${maLong} | (EMA Trend): ${ma200}
 - Status Tren MA: ${trend}
-- Support Kunci: ${support}
-- Resistance Kunci: ${resistance}
+- MACD (12, 26, 9): Histogram ${macd.histogram} (Trend: ${macd.trend})
+- Volatilitas ATR (14): ${atr}
+- Bollinger Bands: Upper ${bollinger.upper} | Middle ${bollinger.middle} | Lower ${bollinger.lower} (%B: ${bollinger.percentB})
+- Support Kunci: ${support} | Resistance Kunci: ${resistance}
+- Skor Konfluensi Algoritma: ${confluenceScore} (-100 sangat bearish s/d +100 sangat bullish)
 
 8 CANDLE TERAKHIR:
 ${recentCandlesText}
 
-ATURAN STRATEGI:
-1. Analisis momentum RSI: Jika RSI < 35 berpotensi BUY (rebound), RSI > 65 berpotensi SELL (pullback), atau konfirmasi kelanjutan tren.
-2. Analisis Moving Average: Perhatikan posisi harga terhadap EMA 20 & EMA 50, serta potensi Golden Cross (MA20 > MA50) atau Death Cross.
-3. Tentukan signal: TEPAT salah satu dari ["BUY", "SELL", "WAIT"].
-4. Tentukan confidence: Angka bulat 50 sampai 95 (%).
-5. Tentukan targetPrice: Target profit realistis berdasarkan jarak R:R minimal 1:1.5.
-6. Tentukan stopLoss: Level proteksi risiko di luar support/resistance atau MA.
-7. Tulis reason: Tepat 1-2 kalimat padat dan profesional dalam Bahasa Indonesia menjelaskan korelasi RSI dan Moving Average.
+ATURAN KETAT:
+1. Signal HARUS salah satu dari: ["BUY", "SELL", "WAIT"].
+   - Jika Skor Konfluensi >= 35: sinyal BUY.
+   - Jika Skor Konfluensi <= -35: sinyal SELL.
+   - Jika -34 s/d +34 atau indikator saling bertentangan: sinyal WAIT (konsolidasi, jangan asal spekulasi).
+2. Confidence: Angka bulat 60 sampai 94 (%).
+3. Risk Management & Risk-to-Reward (R:R minimal 1:1.6):
+   - Jika BUY: Stop Loss HARUS di bawah harga saat ini (${currentPrice}) dekat support (${support}) atau 1.5x ATR (${atr}). Target Price HARUS di atas harga saat ini dengan R:R >= 1.6.
+   - Jika SELL: Stop Loss HARUS di atas harga saat ini (${currentPrice}) dekat resistance (${resistance}) atau 1.5x ATR (${atr}). Target Price HARUS di bawah harga saat ini dengan R:R >= 1.6.
+   - Jika WAIT: Stop Loss di level support (${support}), Target Price di level resistance (${resistance}).
+4. Tulis reason: Tepat 1-2 kalimat lugas dan profesional dalam Bahasa Indonesia menjelaskan korelasi konfluensi indikator secara matematis (RSI, MACD, MA, dan S/R).
 
-OUTPUT HARUS BERUPA JSON MURNI TANPA MARKDOWN BACKTICKS ATAU TEKS LAIN:
+OUTPUT WAJIB JSON MURNI TANPA MARKDOWN BACKTICKS:
 {
   "signal": "BUY" | "SELL" | "WAIT",
   "confidence": 85,
-  "targetPrice": 92500,
-  "stopLoss": 87800,
+  "targetPrice": ${algoTarget},
+  "stopLoss": ${algoStop},
+  "riskRewardRatio": ${algoRR},
   "reason": "Penjelasan ringkas...",
   "indicators": {
     "rsi": ${rsi},
+    "rsiStatus": "${rsiStatus}",
     "maShort": ${maShort},
     "maLong": ${maLong},
     "trend": "${trend}"
   }
 }`;
 
-    // Cek ketersediaan API Key
     const geminiKey = userApiKey || process.env.GEMINI_API_KEY;
     const openaiKey = userApiKey || process.env.OPENAI_API_KEY;
 
@@ -107,17 +193,46 @@ OUTPUT HARUS BERUPA JSON MURNI TANPA MARKDOWN BACKTICKS ATAU TEKS LAIN:
           const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (rawText) {
             const parsed = JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim());
+            const parsedSignal: 'BUY' | 'SELL' | 'WAIT' =
+              parsed.signal === 'BUY' || parsed.signal === 'SELL' || parsed.signal === 'WAIT'
+                ? parsed.signal
+                : recommendedSignal;
+
+            let targetPrice = Number(parsed.targetPrice) || algoTarget;
+            let stopLoss = Number(parsed.stopLoss) || algoStop;
+
+            // Validasi integritas arah SL & TP
+            if (parsedSignal === 'BUY' && (stopLoss >= currentPrice || targetPrice <= currentPrice)) {
+              stopLoss = algoStop;
+              targetPrice = algoTarget;
+            } else if (parsedSignal === 'SELL' && (stopLoss <= currentPrice || targetPrice >= currentPrice)) {
+              stopLoss = algoStop;
+              targetPrice = algoTarget;
+            }
+
+            const riskDistance = Math.abs(currentPrice - stopLoss);
+            const rewardDistance = Math.abs(targetPrice - currentPrice);
+            const riskRewardRatio = riskDistance > 0 ? parseFloat((rewardDistance / riskDistance).toFixed(2)) : algoRR;
+
             aiResult = {
-              signal: parsed.signal || (parsed.action?.includes('BUY') ? 'BUY' : 'WAIT'),
-              confidence: Number(parsed.confidence) || 82,
-              targetPrice: Number(parsed.targetPrice) || currentPrice * 1.03,
-              stopLoss: Number(parsed.stopLoss) || currentPrice * 0.985,
-              reason: parsed.reason || 'Analisis momentum RSI dan konfirmasi tren MA mengindikasikan potensi pergerakan terarah.',
+              signal: parsedSignal,
+              confidence: Math.min(95, Math.max(50, Number(parsed.confidence) || algoConfidence)),
+              targetPrice,
+              stopLoss,
+              riskRewardRatio,
+              reason: parsed.reason || algoReason,
               indicators: {
                 rsi: Number(parsed.indicators?.rsi) || rsi,
+                rsiStatus: parsed.indicators?.rsiStatus || rsiStatus,
                 maShort: Number(parsed.indicators?.maShort) || maShort,
                 maLong: Number(parsed.indicators?.maLong) || maLong,
                 trend: parsed.indicators?.trend || trend,
+                macd,
+                atr,
+                bollinger,
+                confluenceScore,
+                support,
+                resistance,
               },
               symbol,
               currentPrice,
@@ -133,7 +248,7 @@ OUTPUT HARUS BERUPA JSON MURNI TANPA MARKDOWN BACKTICKS ATAU TEKS LAIN:
       }
     }
 
-    // 4B. Eksekusi via OpenAI API jika dipilih dan key tersedia
+    // 4B. Eksekusi via OpenAI API jika key tersedia
     if (!aiResult && provider === 'openai' && openaiKey) {
       try {
         const openaiUrl = 'https://api.openai.com/v1/chat/completions';
@@ -156,17 +271,45 @@ OUTPUT HARUS BERUPA JSON MURNI TANPA MARKDOWN BACKTICKS ATAU TEKS LAIN:
           const rawText = data?.choices?.[0]?.message?.content;
           if (rawText) {
             const parsed = JSON.parse(rawText);
+            const parsedSignal: 'BUY' | 'SELL' | 'WAIT' =
+              parsed.signal === 'BUY' || parsed.signal === 'SELL' || parsed.signal === 'WAIT'
+                ? parsed.signal
+                : recommendedSignal;
+
+            let targetPrice = Number(parsed.targetPrice) || algoTarget;
+            let stopLoss = Number(parsed.stopLoss) || algoStop;
+
+            if (parsedSignal === 'BUY' && (stopLoss >= currentPrice || targetPrice <= currentPrice)) {
+              stopLoss = algoStop;
+              targetPrice = algoTarget;
+            } else if (parsedSignal === 'SELL' && (stopLoss <= currentPrice || targetPrice >= currentPrice)) {
+              stopLoss = algoStop;
+              targetPrice = algoTarget;
+            }
+
+            const riskDistance = Math.abs(currentPrice - stopLoss);
+            const rewardDistance = Math.abs(targetPrice - currentPrice);
+            const riskRewardRatio = riskDistance > 0 ? parseFloat((rewardDistance / riskDistance).toFixed(2)) : algoRR;
+
             aiResult = {
-              signal: parsed.signal || 'BUY',
-              confidence: Number(parsed.confidence) || 84,
-              targetPrice: Number(parsed.targetPrice) || currentPrice * 1.03,
-              stopLoss: Number(parsed.stopLoss) || currentPrice * 0.985,
-              reason: parsed.reason || 'Kombinasi RSI dan Moving Average mengonfirmasi setup arah pergerakan pasar.',
+              signal: parsedSignal,
+              confidence: Math.min(95, Math.max(50, Number(parsed.confidence) || algoConfidence)),
+              targetPrice,
+              stopLoss,
+              riskRewardRatio,
+              reason: parsed.reason || algoReason,
               indicators: {
                 rsi: Number(parsed.indicators?.rsi) || rsi,
+                rsiStatus: parsed.indicators?.rsiStatus || rsiStatus,
                 maShort: Number(parsed.indicators?.maShort) || maShort,
                 maLong: Number(parsed.indicators?.maLong) || maLong,
                 trend: parsed.indicators?.trend || trend,
+                macd,
+                atr,
+                bollinger,
+                confluenceScore,
+                support,
+                resistance,
               },
               symbol,
               currentPrice,
@@ -182,61 +325,27 @@ OUTPUT HARUS BERUPA JSON MURNI TANPA MARKDOWN BACKTICKS ATAU TEKS LAIN:
       }
     }
 
-    // 4C. High-Fidelity Quantitative Algorithmic Engine Fallback
-    // Menjamin API tidak pernah down / error jika user belum input API key
+    // 4C. High-Fidelity Institutional Algorithmic Engine Fallback
     if (!aiResult) {
-      let calcSignal: 'BUY' | 'SELL' | 'WAIT' = 'WAIT';
-      let calcConfidence = 75;
-      let calcTarget = currentPrice * 1.025;
-      let calcStop = currentPrice * 0.985;
-      let calcReason = '';
-
-      const isDecimals4 = currentPrice < 10;
-      const roundVal = (v: number) => isDecimals4 ? parseFloat(v.toFixed(4)) : parseFloat(v.toFixed(2));
-
-      if (rsi < 40 && currentPrice >= maLong * 0.99) {
-        calcSignal = 'BUY';
-        calcConfidence = 88;
-        calcTarget = roundVal(currentPrice + Math.abs(resistance - currentPrice) * 0.9 || currentPrice * 1.035);
-        calcStop = roundVal(support * 0.995 || currentPrice * 0.985);
-        calcReason = `RSI di level ${rsi} (oversold bounce) dengan harga bertahan di atas MA50 (${maLong}), mengonfirmasi pantulan akumulasi buyer yang kuat.`;
-      } else if (maShort > maLong && currentPrice > maShort) {
-        calcSignal = 'BUY';
-        calcConfidence = 84;
-        calcTarget = roundVal(currentPrice * 1.038);
-        calcStop = roundVal(maLong * 0.994);
-        calcReason = `Struktur Golden Cross terkonfirmasi dengan harga di atas EMA20 (${maShort}) & EMA50 (${maLong}), didukung RSI ${rsi} dalam momentum ekspansi sehat.`;
-      } else if (rsi > 68 && currentPrice <= resistance * 1.01) {
-        calcSignal = 'SELL';
-        calcConfidence = 82;
-        calcTarget = roundVal(currentPrice - Math.abs(currentPrice - support) * 0.85 || currentPrice * 0.965);
-        calcStop = roundVal(resistance * 1.006 || currentPrice * 1.015);
-        calcReason = `RSI di level ${rsi} memasuki zona overbought di area resistance ${resistance}, menandakan potensi koreksi pullback jangka pendek.`;
-      } else if (maShort < maLong && currentPrice < maShort) {
-        calcSignal = 'SELL';
-        calcConfidence = 85;
-        calcTarget = roundVal(currentPrice * 0.962);
-        calcStop = roundVal(maShort * 1.006);
-        calcReason = `Tekanan jual dominan akibat Death Cross (EMA20 di bawah EMA50) dan harga ditolak di bawah resistensi rata-rata bergerak.`;
-      } else {
-        calcSignal = 'WAIT';
-        calcConfidence = 68;
-        calcTarget = roundVal(resistance);
-        calcStop = roundVal(support);
-        calcReason = `RSI di level netral (${rsi}) dengan pergerakan harga terjepit antara EMA20 (${maShort}) dan EMA50 (${maLong}). Disarankan menunggu konfirmasi breakout.`;
-      }
-
       aiResult = {
-        signal: calcSignal,
-        confidence: calcConfidence,
-        targetPrice: calcTarget,
-        stopLoss: calcStop,
-        reason: calcReason,
+        signal: recommendedSignal,
+        confidence: algoConfidence,
+        targetPrice: algoTarget,
+        stopLoss: algoStop,
+        riskRewardRatio: algoRR,
+        reason: algoReason,
         indicators: {
           rsi,
+          rsiStatus,
           maShort,
           maLong,
           trend,
+          macd,
+          atr,
+          bollinger,
+          confluenceScore,
+          support,
+          resistance,
         },
         symbol,
         currentPrice,
@@ -247,7 +356,7 @@ OUTPUT HARUS BERUPA JSON MURNI TANPA MARKDOWN BACKTICKS ATAU TEKS LAIN:
       usedProvider = 'algo-engine';
     }
 
-    // 5. Kembalikan output JSON sesuai spesifikasi
+    // 5. Kembalikan output JSON
     return NextResponse.json(aiResult, {
       status: 200,
       headers: {

@@ -181,10 +181,32 @@ export async function getWatchlistItems(userId?: string): Promise<WatchlistRecor
   const uid = userId || defaultUser.id;
   if (isPrismaConnected()) {
     try {
-      const items = await prisma.watchlist.findMany({
+      let items = await prisma.watchlist.findMany({
         where: { userId: uid },
         orderBy: { createdAt: 'desc' },
       });
+      if (items.length === 0) {
+        for (const item of fallbackWatchlists) {
+          try {
+            await prisma.watchlist.create({
+              data: {
+                userId: uid,
+                symbol: item.symbol,
+                name: item.name,
+                type: item.type,
+                notes: item.notes,
+                alertPrice: item.alertPrice,
+              },
+            });
+          } catch {
+            // ignore
+          }
+        }
+        items = await prisma.watchlist.findMany({
+          where: { userId: uid },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
       return items;
     } catch (e) {
       console.warn('Prisma getWatchlistItems fallback:', e);
@@ -284,10 +306,48 @@ export async function getTradeJournals(userId?: string): Promise<TradeJournalRec
   const uid = userId || defaultUser.id;
   if (isPrismaConnected()) {
     try {
-      const items = await prisma.tradeJournal.findMany({
+      let items = await prisma.tradeJournal.findMany({
         where: { userId: uid },
         orderBy: { createdAt: 'desc' },
       });
+      if (items.length === 0) {
+        for (const j of fallbackJournals) {
+          try {
+            await prisma.tradeJournal.create({
+              data: {
+                userId: uid,
+                symbol: j.symbol,
+                type: j.type,
+                direction: j.direction,
+                entryPrice: j.entryPrice,
+                exitPrice: j.exitPrice,
+                stopLoss: j.stopLoss,
+                takeProfit: j.takeProfit,
+                positionSize: j.positionSize,
+                quantity: j.quantity,
+                pnl: j.pnl,
+                pnlPercentage: j.pnlPercentage,
+                status: j.status,
+                outcome: j.outcome,
+                riskRewardRatio: j.riskRewardRatio,
+                timeframe: j.timeframe,
+                aiSignalUsed: j.aiSignalUsed,
+                aiConfidence: j.aiConfidence,
+                strategy: j.strategy,
+                notes: j.notes,
+                tags: j.tags,
+                closedAt: j.closedAt,
+              },
+            });
+          } catch {
+            // ignore
+          }
+        }
+        items = await prisma.tradeJournal.findMany({
+          where: { userId: uid },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
       return items as TradeJournalRecord[];
     } catch (e) {
       console.warn('Prisma getTradeJournals fallback:', e);
@@ -387,6 +447,38 @@ export async function closeTradeJournal(
   exitPrice: number,
   notes?: string
 ): Promise<TradeJournalRecord | null> {
+  if (isPrismaConnected()) {
+    try {
+      const current = await prisma.tradeJournal.findUnique({
+        where: { id },
+      });
+      if (current) {
+        const isLong = current.direction === 'LONG';
+        const priceDiff = isLong ? exitPrice - current.entryPrice : current.entryPrice - exitPrice;
+        const pnlPct = (priceDiff / current.entryPrice) * 100;
+        const pnl = (current.positionSize * pnlPct) / 100;
+        const outcome: 'WIN' | 'LOSS' | 'BREAKEVEN' =
+          pnl > 0.5 ? 'WIN' : pnl < -0.5 ? 'LOSS' : 'BREAKEVEN';
+
+        const updated = await prisma.tradeJournal.update({
+          where: { id },
+          data: {
+            exitPrice,
+            pnl: parseFloat(pnl.toFixed(2)),
+            pnlPercentage: parseFloat(pnlPct.toFixed(2)),
+            status: 'CLOSED',
+            outcome,
+            notes: notes ? `${current.notes || ''} [Tutup: ${notes}]` : current.notes,
+            closedAt: new Date(),
+          },
+        });
+        return updated as TradeJournalRecord;
+      }
+    } catch (e) {
+      console.warn('Prisma closeTradeJournal fallback:', e);
+    }
+  }
+
   const current = fallbackJournals.find((j) => j.id === id);
   if (!current) return null;
 
@@ -396,26 +488,6 @@ export async function closeTradeJournal(
   const pnl = (current.positionSize * pnlPct) / 100;
   const outcome: 'WIN' | 'LOSS' | 'BREAKEVEN' =
     pnl > 0.5 ? 'WIN' : pnl < -0.5 ? 'LOSS' : 'BREAKEVEN';
-
-  if (isPrismaConnected()) {
-    try {
-      const updated = await prisma.tradeJournal.update({
-        where: { id },
-        data: {
-          exitPrice,
-          pnl: parseFloat(pnl.toFixed(2)),
-          pnlPercentage: parseFloat(pnlPct.toFixed(2)),
-          status: 'CLOSED',
-          outcome,
-          notes: notes ? `${current.notes || ''} [Tutup: ${notes}]` : current.notes,
-          closedAt: new Date(),
-        },
-      });
-      return updated as TradeJournalRecord;
-    } catch (e) {
-      console.warn('Prisma closeTradeJournal fallback:', e);
-    }
-  }
 
   current.exitPrice = exitPrice;
   current.pnl = parseFloat(pnl.toFixed(2));
@@ -430,12 +502,13 @@ export async function closeTradeJournal(
 }
 
 export async function deleteTradeJournal(id: string): Promise<boolean> {
+  let deletedFromPrisma = false;
   if (isPrismaConnected()) {
     try {
       await prisma.tradeJournal.delete({
         where: { id },
       });
-      return true;
+      deletedFromPrisma = true;
     } catch (e) {
       console.warn('Prisma deleteTradeJournal fallback:', e);
     }
@@ -443,5 +516,5 @@ export async function deleteTradeJournal(id: string): Promise<boolean> {
 
   const prevLen = fallbackJournals.length;
   fallbackJournals = fallbackJournals.filter((j) => j.id !== id);
-  return fallbackJournals.length < prevLen;
+  return deletedFromPrisma || fallbackJournals.length < prevLen;
 }
