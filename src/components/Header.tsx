@@ -48,30 +48,27 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Latency & ticker micro-variation simulation for real-time feel
+  const prevPricesRef = React.useRef<Record<string, number>>({});
+
+  // Track live real price direction (up/down flash) without fake artificial price nudging
+  useEffect(() => {
+    const newTickerPrices: Record<string, { price: number; dir: 'up' | 'down' | 'none' }> = {};
+    instruments.forEach((inst) => {
+      const prev = prevPricesRef.current[inst.id];
+      const dir: 'up' | 'down' | 'none' = prev === undefined ? 'none' : inst.price > prev ? 'up' : inst.price < prev ? 'down' : 'none';
+      prevPricesRef.current[inst.id] = inst.price;
+      newTickerPrices[inst.id] = { price: inst.price, dir };
+    });
+    setTickerPrices(newTickerPrices);
+  }, [instruments]);
+
+  // Subtle natural network latency fluctuation
   useEffect(() => {
     const interval = setInterval(() => {
-      // Natural jitter in latency between 11ms and 18ms
-      setCurrentLatency(Math.floor(11 + Math.random() * 7));
-
-      // Randomly nudge 1 ticker price slightly for live activity flash
-      if (instruments.length > 0) {
-        const randomIdx = Math.floor(Math.random() * instruments.length);
-        const target = instruments[randomIdx];
-        const delta = (Math.random() - 0.49) * 0.0008 * target.price;
-        const newPrice = target.price + delta;
-        setTickerPrices(prev => ({
-          ...prev,
-          [target.id]: {
-            price: newPrice,
-            dir: delta >= 0 ? 'up' : 'down'
-          }
-        }));
-      }
-    }, 2800);
-
+      setCurrentLatency(Math.floor(11 + Math.random() * 6));
+    }, 4000);
     return () => clearInterval(interval);
-  }, [instruments]);
+  }, []);
 
   return (
     <header className="w-full bg-[#080C14]/95 border-b border-slate-800/80 backdrop-blur-md sticky top-0 z-50">

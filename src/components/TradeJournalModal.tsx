@@ -220,14 +220,14 @@ export const TradeJournalModal: React.FC<TradeJournalModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-extrabold text-white tracking-tight">
+                <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
                   BetaTech Trade Journal
                 </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  PostgreSQL / Supabase ORM
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hidden sm:inline-block">
+                  PostgreSQL ORM
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">
                 Pencatatan hasil simulasi, evaluasi psikologi trading, dan analisis performa kuantitatif.
               </p>
             </div>

@@ -124,12 +124,12 @@ export default function DashboardPage() {
         onOpenJournal={() => handleOpenJournal()}
       />
 
-      {/* Mobile Tab Switcher (Visible only on small screens) */}
-      <div className="md:hidden flex items-center justify-around bg-[#090D18] border-b border-slate-800 p-1 text-xs">
+      {/* Mobile & Tablet Tab Switcher (Visible on < lg screens) */}
+      <div className="lg:hidden flex items-center justify-around bg-[#090D18] border-b border-slate-800 p-1 text-xs shrink-0 z-20">
         <button
           onClick={() => setMobileView('watchlist')}
-          className={`py-1.5 px-3 rounded flex items-center gap-1.5 ${
-            mobileView === 'watchlist' ? 'bg-blue-600/20 text-blue-400 font-bold' : 'text-slate-400'
+          className={`py-1.5 px-3 rounded flex items-center gap-1.5 transition-all ${
+            mobileView === 'watchlist' ? 'bg-[#00F0FF]/20 text-[#00F0FF] font-bold border border-[#00F0FF]/30' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -137,8 +137,8 @@ export default function DashboardPage() {
         </button>
         <button
           onClick={() => setMobileView('chart')}
-          className={`py-1.5 px-3 rounded flex items-center gap-1.5 ${
-            mobileView === 'chart' ? 'bg-blue-600/20 text-blue-400 font-bold' : 'text-slate-400'
+          className={`py-1.5 px-3 rounded flex items-center gap-1.5 transition-all ${
+            mobileView === 'chart' ? 'bg-[#00F0FF]/20 text-[#00F0FF] font-bold border border-[#00F0FF]/30' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <BarChart2 className="w-3.5 h-3.5" />
@@ -146,8 +146,8 @@ export default function DashboardPage() {
         </button>
         <button
           onClick={() => setMobileView('panel')}
-          className={`py-1.5 px-3 rounded flex items-center gap-1.5 ${
-            mobileView === 'panel' ? 'bg-blue-600/20 text-blue-400 font-bold' : 'text-slate-400'
+          className={`py-1.5 px-3 rounded flex items-center gap-1.5 transition-all ${
+            mobileView === 'panel' ? 'bg-[#00F0FF]/20 text-[#00F0FF] font-bold border border-[#00F0FF]/30' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Compass className="w-3.5 h-3.5" />
@@ -155,10 +155,10 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Main Layout Work Area: 3-Column Desktop Grid */}
-      <main className="flex-1 flex flex-row overflow-hidden min-h-0">
+      {/* Main Layout Work Area: 3-Column Desktop Grid / Responsive Tabs on Mobile & Tablet */}
+      <main className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
         {/* 2. Sidebar Kiri (Watchlist, Pencarian & Filter Pasar) */}
-        <div className={`h-full ${mobileView === 'watchlist' ? 'w-full block' : 'hidden md:block'}`}>
+        <div className={`h-full ${mobileView === 'watchlist' ? 'w-full block' : 'hidden lg:block'} shrink-0`}>
           <SidebarLeft
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}
@@ -170,7 +170,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 3. Main Panel Tengah (Grafik Interaktif Lightweight Charts & Technical Scanner) */}
-        <div className={`flex-1 h-full min-w-0 ${mobileView === 'chart' ? 'flex' : 'hidden md:flex'} flex-col`}>
+        <div className={`flex-1 h-full min-w-0 ${mobileView === 'chart' ? 'flex' : 'hidden lg:flex'} flex-col`}>
           <MainChartPanel
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}
@@ -181,7 +181,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 4. Side Panel Kanan (Multi-Pair Signal Screener & Technical Gauge) */}
-        <div className={`h-full ${mobileView === 'panel' ? 'w-full block' : 'hidden lg:block'}`}>
+        <div className={`h-full ${mobileView === 'panel' ? 'w-full block' : 'hidden lg:block'} shrink-0`}>
           <SidePanelRight
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}

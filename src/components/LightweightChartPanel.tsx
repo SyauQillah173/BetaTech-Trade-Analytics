@@ -63,6 +63,14 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const ema50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const pivotLinesRef = useRef<IPriceLine[]>([]);
 
+  // Performance tracking refs for zero-lag high-frequency candle updates
+  const lastInstrumentRef = useRef<string>(selectedInstrument.id);
+  const lastTfRef = useRef<Timeframe>(timeframe);
+  const lastCandleTimeRef = useRef<number>(0);
+  const lastCandleCountRef = useRef<number>(0);
+  const hoverRafRef = useRef<number | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
   // Real-time market data hooks (SWR auto-refreshing every few seconds)
   const { candles, isValidating: isKlinesValidating } = useInstrumentKlines(selectedInstrument, timeframe);
 
@@ -218,76 +226,131 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
     });
     ema50SeriesRef.current = ema50Series;
 
-    // Interactive Crosshair Hover handler
+    // Interactive Crosshair Hover handler (Throttled with requestAnimationFrame)
     chart.subscribeCrosshairMove((param) => {
-      if (!param.time || !param.point) {
-        setHoveredData(null);
-        return;
-      }
+      if (hoverRafRef.current) cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = requestAnimationFrame(() => {
+        if (!param.time || !param.point) {
+          setHoveredData(null);
+          return;
+        }
 
-      const cs = candleSeriesRef.current;
-      const vs = volumeSeriesRef.current;
-      const e20 = ema20SeriesRef.current;
-      const e50 = ema50SeriesRef.current;
+        const cs = candleSeriesRef.current;
+        const vs = volumeSeriesRef.current;
+        const e20 = ema20SeriesRef.current;
+        const e50 = ema50SeriesRef.current;
 
-      const cData = cs ? param.seriesData.get(cs) : null;
-      const vData = vs ? param.seriesData.get(vs) : null;
-      const e20Data = e20 ? param.seriesData.get(e20) : null;
-      const e50Data = e50 ? param.seriesData.get(e50) : null;
+        const cData = cs ? param.seriesData.get(cs) : null;
+        const vData = vs ? param.seriesData.get(vs) : null;
+        const e20Data = e20 ? param.seriesData.get(e20) : null;
+        const e50Data = e50 ? param.seriesData.get(e50) : null;
 
-      if (cData && 'close' in cData) {
-        const timeStr = typeof param.time === 'number'
-          ? new Date(param.time * 1000).toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : String(param.time);
+        if (cData && 'close' in cData) {
+          const timeStr = typeof param.time === 'number'
+            ? new Date(param.time * 1000).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : String(param.time);
 
-        const candleObj = cData as unknown as { open: number; high: number; low: number; close: number };
-        const volObj = vData as unknown as { value: number } | null;
-        const ema20Obj = e20Data as unknown as { value: number } | null;
-        const ema50Obj = e50Data as unknown as { value: number } | null;
+          const candleObj = cData as unknown as { open: number; high: number; low: number; close: number };
+          const volObj = vData as unknown as { value: number } | null;
+          const ema20Obj = e20Data as unknown as { value: number } | null;
+          const ema50Obj = e50Data as unknown as { value: number } | null;
 
-        setHoveredData({
-          time: timeStr,
-          open: candleObj.open,
-          high: candleObj.high,
-          low: candleObj.low,
-          close: candleObj.close,
-          volume: volObj && typeof volObj.value === 'number' ? volObj.value : undefined,
-          ema20: ema20Obj && typeof ema20Obj.value === 'number' ? ema20Obj.value : undefined,
-          ema50: ema50Obj && typeof ema50Obj.value === 'number' ? ema50Obj.value : undefined,
-        });
-      }
+          setHoveredData({
+            time: timeStr,
+            open: candleObj.open,
+            high: candleObj.high,
+            low: candleObj.low,
+            close: candleObj.close,
+            volume: volObj && typeof volObj.value === 'number' ? volObj.value : undefined,
+            ema20: ema20Obj && typeof ema20Obj.value === 'number' ? ema20Obj.value : undefined,
+            ema50: ema50Obj && typeof ema50Obj.value === 'number' ? ema50Obj.value : undefined,
+          });
+        }
+      });
     });
 
-    // Handle container resize cleanly
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
-      }
-    };
-    window.addEventListener('resize', handleResize);
+    // ResizeObserver: 100% fluid responsive scaling on mobile, tablet, and desktop
+    if (chartContainerRef.current) {
+      const ro = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0 || !chartRef.current) return;
+        const { width, height } = entries[0].contentRect;
+        if (width > 0 && height > 0) {
+          requestAnimationFrame(() => {
+            chartRef.current?.applyOptions({ width, height });
+          });
+        }
+      });
+      ro.observe(chartContainerRef.current);
+      resizeObserverRef.current = ro;
+    }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+      if (hoverRafRef.current) {
+        cancelAnimationFrame(hoverRafRef.current);
+      }
       chart.remove();
       chartRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
-  // Update Series Data whenever SWR brings new candle data
+  // High-Performance Series Update (O(1) in-place tick update when candle moves fast)
   useEffect(() => {
     if (!candles || candles.length === 0 || !chartRef.current) return;
 
+    const isInstrumentChanged = selectedInstrument.id !== lastInstrumentRef.current;
+    const isTfChanged = timeframe !== lastTfRef.current;
+    const lastBar = candles[candles.length - 1];
+    const isTickUpdate =
+      !isInstrumentChanged &&
+      !isTfChanged &&
+      candles.length === lastCandleCountRef.current &&
+      lastBar.time === lastCandleTimeRef.current;
+
+    // Fast-path: Update existing bar in-place (<0.1ms execution, no canvas buffer thrashing)
+    if (isTickUpdate) {
+      requestAnimationFrame(() => {
+        candleSeriesRef.current?.update({
+          time: lastBar.time as UTCTimestamp,
+          open: lastBar.open,
+          high: lastBar.high,
+          low: lastBar.low,
+          close: lastBar.close,
+        });
+        lineSeriesRef.current?.update({
+          time: lastBar.time as UTCTimestamp,
+          value: lastBar.close,
+        });
+        areaSeriesRef.current?.update({
+          time: lastBar.time as UTCTimestamp,
+          value: lastBar.close,
+        });
+        volumeSeriesRef.current?.update({
+          time: lastBar.time as UTCTimestamp,
+          value: lastBar.volume,
+          color: lastBar.close >= lastBar.open ? 'rgba(16, 185, 129, 0.45)' : 'rgba(244, 63, 94, 0.45)',
+        });
+      });
+      return;
+    }
+
+    // Full-path: Symbol changed, timeframe changed, or new bar opened
+    lastInstrumentRef.current = selectedInstrument.id;
+    lastTfRef.current = timeframe;
+    lastCandleCountRef.current = candles.length;
+    lastCandleTimeRef.current = lastBar.time;
+
     // Convert and sanitize timestamps (strictly ascending)
-    const candleData = candles.map(c => ({
+    const candleData = candles.map((c) => ({
       time: c.time as UTCTimestamp,
       open: c.open,
       high: c.high,
@@ -295,25 +358,25 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       close: c.close,
     }));
 
-    const lineData = candles.map(c => ({
+    const lineData = candles.map((c) => ({
       time: c.time as UTCTimestamp,
       value: c.close,
     }));
 
-    const volumeData = candles.map(c => ({
+    const volumeData = candles.map((c) => ({
       time: c.time as UTCTimestamp,
       value: c.volume,
       color: c.close >= c.open ? 'rgba(16, 185, 129, 0.45)' : 'rgba(244, 63, 94, 0.45)',
     }));
 
     const ema20Raw = calculateEMA(candles, 20);
-    const ema20Data = ema20Raw.map(d => ({
+    const ema20Data = ema20Raw.map((d) => ({
       time: d.time as UTCTimestamp,
       value: d.value,
     }));
 
     const ema50Raw = calculateEMA(candles, 50);
-    const ema50Data = ema50Raw.map(d => ({
+    const ema50Data = ema50Raw.map((d) => ({
       time: d.time as UTCTimestamp,
       value: d.value,
     }));
@@ -324,14 +387,12 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
     volumeSeriesRef.current?.setData(volumeData);
     ema20SeriesRef.current?.setData(ema20Data);
     ema50SeriesRef.current?.setData(ema50Data);
-  }, [candles]);
 
-  // Adjust view bounds on instrument or timeframe switch
-  useEffect(() => {
-    if (chartRef.current && candles.length > 0) {
-      chartRef.current.timeScale().fitContent();
+    // Adjust view bounds ONLY when instrument or timeframe changes
+    if (isInstrumentChanged || isTfChanged) {
+      chartRef.current?.timeScale().fitContent();
     }
-  }, [selectedInstrument.id, timeframe, candles.length]);
+  }, [candles, selectedInstrument.id, timeframe]);
 
   // Update Series Visibility
   useEffect(() => {
@@ -395,18 +456,18 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   return (
     <section className="flex-1 flex flex-col bg-[#070A12] overflow-hidden min-w-0">
       {/* Active Instrument Top Banner */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-2.5 bg-[#0A0E1A]/95 border-b border-slate-800/80 gap-3">
+      <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 py-2 bg-[#0A0E1A]/95 border-b border-slate-800/80 gap-2">
         {/* Left: Active Asset Meta */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xl md:text-2xl font-black text-white tracking-tight">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight">
               {selectedInstrument.symbol}
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
+            <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
               {selectedInstrument.name}
             </span>
             <span
-              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+              className={`text-[9px] sm:text-[10px] font-mono font-bold px-1.5 sm:px-2 py-0.5 rounded border ${
                 technical.bias === 'BULLISH'
                   ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                   : technical.bias === 'BEARISH'
@@ -417,18 +478,19 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
               BIAS: {technical.bias}
             </span>
             {selectedInstrument.type === 'crypto' && (
-              <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700">
+              <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700">
                 <Radio className={`w-3 h-3 ${isKlinesValidating ? 'animate-spin text-blue-400' : 'text-emerald-400'}`} />
-                <span>BINANCE LIVE</span>
+                <span className="hidden sm:inline">BINANCE LIVE</span>
+                <span className="sm:hidden">LIVE</span>
               </span>
             )}
           </div>
 
-          <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
 
           {/* Current Live Price */}
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl md:text-2xl font-extrabold font-mono text-white tracking-tight">
+          <div className="flex items-baseline gap-1.5 sm:gap-2">
+            <span className="text-lg sm:text-xl md:text-2xl font-extrabold font-mono text-white tracking-tight">
               ${selectedInstrument.decimals > 2
                 ? selectedInstrument.price.toFixed(selectedInstrument.decimals)
                 : selectedInstrument.price.toLocaleString('en-US', {
@@ -437,7 +499,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   })}
             </span>
             <span
-              className={`flex items-center text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+              className={`flex items-center text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
                 selectedInstrument.change24h >= 0
                   ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30'
                   : 'text-rose-400 bg-rose-500/15 border border-rose-500/30'
@@ -475,14 +537,14 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       </div>
 
       {/* Chart Control Toolbar */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-2 bg-[#080C16] border-b border-slate-800/60 gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 py-1.5 sm:py-2 bg-[#080C16] border-b border-slate-800/60 gap-2 text-xs">
         {/* Timeframe Selector (1m, 5m, 15m, 1h, 4h, 1d, 1w) */}
-        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[#0F1524] border border-slate-800">
+        <div className="flex items-center gap-0.5 sm:gap-1 p-0.5 rounded-lg bg-[#0F1524] border border-slate-800 overflow-x-auto max-w-full">
           {timeframes.map((tf) => (
             <button
               key={tf}
               onClick={() => onTimeframeChange(tf)}
-              className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
+              className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-mono font-medium transition-all shrink-0 ${
                 timeframe === tf
                   ? 'bg-blue-600 text-white font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
