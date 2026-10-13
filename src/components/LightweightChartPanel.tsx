@@ -457,7 +457,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const timeframes: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
   return (
-    <section className="flex-1 flex flex-col bg-[#070A12] overflow-hidden min-w-0">
+    <section className="flex-1 flex flex-col bg-[#070A12] overflow-y-auto lg:overflow-hidden min-w-0">
       {/* Active Instrument Top Banner */}
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 py-2 bg-[#0A0E1A]/95 border-b border-slate-800/80 gap-2">
         {/* Left: Active Asset Meta */}
@@ -676,7 +676,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       </div>
 
       {/* Main Lightweight Charts Container */}
-      <div className="relative flex-1 bg-[#06080F] min-h-[260px] sm:min-h-[300px] w-full overflow-hidden touch-none select-none">
+      <div className="relative w-full h-[340px] sm:h-[400px] lg:h-auto lg:flex-1 shrink-0 bg-[#06080F] overflow-hidden select-none">
         <div ref={chartContainerRef} className="w-full h-full touch-none select-none" />
 
         {/* RSI 14 Sub-indicator Pane (if toggled) */}
@@ -701,8 +701,17 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         )}
       </div>
 
+      {/* Mobile Scroll Indicator Helper */}
+      <div className="lg:hidden flex items-center justify-between px-3 py-1 bg-[#0A0E1A]/80 border-y border-slate-800/80 text-[10px] font-mono text-slate-400 shrink-0">
+        <span className="flex items-center gap-1.5 text-[#00F0FF]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
+          <span className="font-semibold">Level Kunci, Sinyal & Matriks</span>
+        </span>
+        <span className="text-slate-400">↓ Gulir ke bawah</span>
+      </div>
+
       {/* Bottom Sub-panel: Pure Technical Analysis & Multi-Pair Signal Screener */}
-      <div className={`border-t border-slate-800/80 bg-[#090D18] flex flex-col transition-all duration-200 shrink-0 ${isBottomCollapsed ? 'h-9' : 'h-64 sm:h-72'}`}>
+      <div className={`border-t border-slate-800/80 bg-[#090D18] flex flex-col transition-all duration-200 shrink-0 ${isBottomCollapsed ? 'h-9' : 'h-auto min-h-[300px] lg:h-64 sm:lg:h-72'} pb-14 lg:pb-0`}>
         {/* Sub-panel Tabs */}
         <div className="flex items-center justify-between px-2 sm:px-3 py-1 border-b border-slate-800/70 bg-[#0B0F1C] text-xs">
           <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar max-w-[85%] sm:max-w-none">

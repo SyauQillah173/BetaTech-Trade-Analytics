@@ -36,7 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable} dark h-full`}>
-      <body className="h-full h-[100dvh] w-full overflow-hidden bg-[#06080F] text-slate-100 antialiased font-sans flex flex-col selection:bg-[#00F0FF]/30 selection:text-[#00F0FF] select-none touch-manipulation">
+      <body className="min-h-full min-h-[100dvh] w-full overflow-x-hidden bg-[#06080F] text-slate-100 antialiased font-sans flex flex-col selection:bg-[#00F0FF]/30 selection:text-[#00F0FF] select-none">
         {children}
       </body>
     </html>

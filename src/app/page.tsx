@@ -158,7 +158,7 @@ export default function DashboardPage() {
       {/* Main Layout Work Area: 3-Column Desktop Grid / Responsive Tabs on Mobile & Tablet */}
       <main className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
         {/* 2. Sidebar Kiri (Watchlist, Pencarian & Filter Pasar) */}
-        <div className={`h-full ${mobileView === 'watchlist' ? 'w-full block' : 'hidden lg:block'} shrink-0`}>
+        <div className={`h-full ${mobileView === 'watchlist' ? 'w-full block overflow-y-auto' : 'hidden lg:block'} shrink-0`}>
           <SidebarLeft
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}
@@ -170,7 +170,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 3. Main Panel Tengah (Grafik Interaktif Lightweight Charts & Technical Scanner) */}
-        <div className={`flex-1 h-full min-w-0 ${mobileView === 'chart' ? 'flex' : 'hidden lg:flex'} flex-col`}>
+        <div className={`flex-1 h-full min-w-0 ${mobileView === 'chart' ? 'flex overflow-y-auto' : 'hidden lg:flex'} flex-col`}>
           <MainChartPanel
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}
@@ -181,7 +181,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 4. Side Panel Kanan (Multi-Pair Signal Screener & Technical Gauge) */}
-        <div className={`h-full ${mobileView === 'panel' ? 'w-full block' : 'hidden lg:block'} shrink-0`}>
+        <div className={`h-full ${mobileView === 'panel' ? 'w-full block overflow-y-auto' : 'hidden lg:block'} shrink-0`}>
           <SidePanelRight
             instruments={liveInstruments}
             selectedInstrument={selectedInstrument}

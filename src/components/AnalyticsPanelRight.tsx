@@ -168,7 +168,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
   );
 
   return (
-    <aside className="w-full lg:w-80 xl:w-96 h-full bg-[#090D18] border-l border-slate-800/80 flex flex-col overflow-hidden text-xs">
+    <aside className="w-full lg:w-80 xl:w-96 h-full bg-[#090D18] border-l border-slate-800/80 flex flex-col overflow-y-auto lg:overflow-hidden text-xs pb-16 lg:pb-0">
       {/* Top Header & Tab Switcher */}
       <div className="p-3 bg-[#0B0F1C] border-b border-slate-800/80 flex flex-col gap-2.5">
         <div className="flex items-center justify-between">

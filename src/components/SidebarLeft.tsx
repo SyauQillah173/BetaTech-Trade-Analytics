@@ -391,7 +391,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
       </div>
 
       {/* Watchlist Instrument List */}
-      <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1">
+      <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1 pb-16 lg:pb-2">
         <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-slate-500 border-b border-slate-800/60 mb-1">
           <span>Pasangan / Aset</span>
           <span>Harga / Aksi</span>
