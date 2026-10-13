@@ -578,6 +578,53 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 </div>
               </div>
 
+              {/* Level Kunci: Support & Resistance Terverifikasi */}
+              <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
+                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
+                  <div className="text-[9px] text-slate-400 uppercase font-sans">
+                    Support Kunci
+                  </div>
+                  <div className="text-emerald-400 font-bold mt-0.5">
+                    ${generatedSignal.indicators.support || technical.s1}
+                  </div>
+                </div>
+
+                <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
+                  <div className="text-[9px] text-slate-400 uppercase font-sans">
+                    Resistance Kunci
+                  </div>
+                  <div className="text-rose-400 font-bold mt-0.5">
+                    ${generatedSignal.indicators.resistance || technical.r1}
+                  </div>
+                </div>
+              </div>
+
+              {/* Matriks Tren Pasar Multi-Timeframe Langsung di Sinyal */}
+              <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80 space-y-1.5">
+                <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase font-sans">
+                  <span>Matriks Tren Pasar (Multi-TF)</span>
+                  <span className="text-slate-500 font-mono">15m • 1h • 4h • 1d</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1 text-[10px] font-mono text-center">
+                  {tfMatrix.map((item) => (
+                    <div key={item.timeframe} className="p-1 rounded bg-slate-900/80 border border-slate-800">
+                      <div className="text-[9px] text-slate-400">{item.timeframe}</div>
+                      <div
+                        className={`font-bold text-[10px] ${
+                          item.trend === 'BULLISH'
+                            ? 'text-emerald-400'
+                            : item.trend === 'BEARISH'
+                            ? 'text-rose-400'
+                            : 'text-amber-400'
+                        }`}
+                      >
+                        {item.trend === 'BULLISH' ? 'BUY' : item.trend === 'BEARISH' ? 'SELL' : 'NEU'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Alasan Ringkas AI (Reasoning Box) */}
               <div className="p-2.5 rounded-lg bg-[#070A12] border border-[#00F0FF]/25 space-y-1">
                 <div className="text-[10px] text-[#00F0FF] uppercase tracking-wider font-bold flex items-center gap-1">

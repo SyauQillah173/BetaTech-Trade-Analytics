@@ -6,6 +6,8 @@ import {
   LineChart,
   Layers,
   Radio,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   createChart,
@@ -51,6 +53,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const [showVolume, setShowVolume] = useState(true);
   const [showRSI, setShowRSI] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState<'signals' | 'pivots' | 'indicators'>('signals');
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
 
   // Chart DOM container and instance refs
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -699,117 +702,194 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       </div>
 
       {/* Bottom Sub-panel: Pure Technical Analysis & Multi-Pair Signal Screener */}
-      <div className="border-t border-slate-800/80 bg-[#090D18] flex flex-col h-56 md:h-64">
+      <div className={`border-t border-slate-800/80 bg-[#090D18] flex flex-col transition-all duration-200 shrink-0 ${isBottomCollapsed ? 'h-9' : 'h-64 sm:h-72'}`}>
         {/* Sub-panel Tabs */}
-        <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800/70 bg-[#0B0F1C] text-xs">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-2 sm:px-3 py-1 border-b border-slate-800/70 bg-[#0B0F1C] text-xs">
+          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar max-w-[85%] sm:max-w-none">
             <button
-              onClick={() => setActiveBottomTab('signals')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded font-medium transition-colors ${
-                activeBottomTab === 'signals'
+              onClick={() => {
+                setActiveBottomTab('signals');
+                if (isBottomCollapsed) setIsBottomCollapsed(false);
+              }}
+              className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+                activeBottomTab === 'signals' && !isBottomCollapsed
                   ? 'bg-slate-800 text-blue-400 border border-blue-500/30 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span>Live Signal Screener (Semua Pair)</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-400">
+              <span className="sm:hidden">⚡ Sinyal</span>
+              <span className="hidden sm:inline">Live Signal Screener</span>
+              <span className="text-[10px] font-mono px-1 rounded-full bg-blue-500/20 text-blue-400">
                 {marketSignals.length}
               </span>
             </button>
             <button
-              onClick={() => setActiveBottomTab('pivots')}
-              className={`px-3 py-1 rounded font-medium transition-colors ${
-                activeBottomTab === 'pivots'
+              onClick={() => {
+                setActiveBottomTab('pivots');
+                if (isBottomCollapsed) setIsBottomCollapsed(false);
+              }}
+              className={`px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+                activeBottomTab === 'pivots' && !isBottomCollapsed
                   ? 'bg-slate-800 text-blue-400 border border-blue-500/30 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Level Kunci & Pivot Points
+              <span className="sm:hidden">🎯 Level Kunci</span>
+              <span className="hidden sm:inline">Level Kunci & Pivot</span>
             </button>
             <button
-              onClick={() => setActiveBottomTab('indicators')}
-              className={`px-3 py-1 rounded font-medium transition-colors ${
-                activeBottomTab === 'indicators'
+              onClick={() => {
+                setActiveBottomTab('indicators');
+                if (isBottomCollapsed) setIsBottomCollapsed(false);
+              }}
+              className={`px-2 sm:px-3 py-1 rounded font-medium transition-colors shrink-0 ${
+                activeBottomTab === 'indicators' && !isBottomCollapsed
                   ? 'bg-slate-800 text-blue-400 border border-blue-500/30 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Matriks Indikator Multi-Timeframe
+              <span className="sm:hidden">📊 Matriks TF</span>
+              <span className="hidden sm:inline">Matriks Multi-Timeframe</span>
             </button>
           </div>
 
-          <div className="text-[11px] font-mono text-slate-400 hidden sm:flex items-center gap-2">
-            <span>Instrumen: <span className="text-white font-semibold">{selectedInstrument.symbol}</span></span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] font-mono text-slate-400 hidden md:inline">
+              {selectedInstrument.symbol}
+            </span>
+            <button
+              onClick={() => setIsBottomCollapsed(!isBottomCollapsed)}
+              className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono"
+              title={isBottomCollapsed ? 'Buka Panel' : 'Minimalkan Panel'}
+            >
+              <span className="hidden sm:inline">{isBottomCollapsed ? 'Buka' : 'Tutup'}</span>
+              {isBottomCollapsed ? <ChevronUp className="w-3.5 h-3.5 text-[#00F0FF]" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
 
-        {/* Tab 1: Live Signals Screener Table (All Pairs) */}
-        {activeBottomTab === 'signals' && (
+        {/* Tab 1: Live Signals Screener (Responsive Cards on Mobile / Table on Desktop) */}
+        {!isBottomCollapsed && activeBottomTab === 'signals' && (
           <div className="flex-1 overflow-y-auto p-2 text-xs font-mono">
-            <div className="grid grid-cols-7 text-[10px] uppercase text-slate-400 px-2 py-1 border-b border-slate-800/60">
-              <span>Pair / Arah</span>
-              <span>TF</span>
-              <span className="col-span-2">Pola Setup</span>
-              <span>Harga Masuk</span>
-              <span>Target (TP)</span>
-              <span className="text-right">Aksi</span>
-            </div>
-            <div className="space-y-1 mt-1">
+            {/* Mobile Card Layout (< sm screens) */}
+            <div className="sm:hidden space-y-2">
               {marketSignals.map((sig) => {
                 const isCurrent = sig.symbol === selectedInstrument.symbol;
                 const isBull = sig.direction === 'BULLISH';
                 return (
                   <div
                     key={sig.id}
-                    className={`grid grid-cols-7 items-center px-2 py-1.5 rounded border transition-colors ${
+                    className={`p-2.5 rounded-lg border transition-colors space-y-1.5 ${
                       isCurrent
-                        ? 'bg-slate-800/80 border-blue-500/40'
+                        ? 'bg-slate-800/90 border-blue-500/50'
                         : 'bg-[#0B0F1C] border-slate-800/80 hover:bg-slate-800/40'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <span className="text-white">{sig.symbol}</span>
-                      <span
-                        className={`text-[9px] px-1 py-0.2 rounded font-mono ${
-                          isBull
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : sig.direction === 'BEARISH'
-                            ? 'bg-rose-500/20 text-rose-400'
-                            : 'bg-amber-500/20 text-amber-400'
-                        }`}
-                      >
-                        {sig.direction}
-                      </span>
-                    </div>
-                    <span className="text-slate-300 font-semibold">{sig.timeframe}</span>
-                    <span className="col-span-2 text-slate-200 truncate pr-2">{sig.setup}</span>
-                    <span className="text-slate-300">${sig.price}</span>
-                    <span className="text-emerald-400 font-semibold">${sig.targetPrice}</span>
-                    <div className="text-right">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <span className="text-white text-xs">{sig.symbol}</span>
+                        <span className="text-[9px] px-1 rounded bg-slate-800 text-slate-400">{sig.timeframe}</span>
+                        <span
+                          className={`text-[9px] px-1 py-0.2 rounded font-mono ${
+                            isBull
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : sig.direction === 'BEARISH'
+                              ? 'bg-rose-500/20 text-rose-400'
+                              : 'bg-amber-500/20 text-amber-400'
+                          }`}
+                        >
+                          {sig.direction}
+                        </span>
+                      </div>
                       <button
                         onClick={() => {
                           const found = instruments.find((i) => i.id === sig.instrumentId);
                           if (found) onSelectInstrument(found);
                         }}
-                        className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 transition-colors text-[11px]"
+                        className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/40 text-[10px]"
                       >
-                        {isCurrent ? 'Aktif' : 'Buka Pair'}
+                        {isCurrent ? 'Aktif' : 'Pilih'}
                       </button>
+                    </div>
+
+                    <div className="text-[10px] text-slate-300 font-sans truncate">{sig.setup}</div>
+
+                    <div className="flex items-center justify-between text-[10px] bg-black/40 px-2 py-1 rounded">
+                      <div>Masuk: <span className="text-slate-200 font-semibold">${sig.price}</span></div>
+                      <div>Target TP: <span className="text-emerald-400 font-bold">${sig.targetPrice}</span></div>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Desktop Table Layout (>= sm screens) */}
+            <div className="hidden sm:block">
+              <div className="grid grid-cols-7 text-[10px] uppercase text-slate-400 px-2 py-1 border-b border-slate-800/60">
+                <span>Pair / Arah</span>
+                <span>TF</span>
+                <span className="col-span-2">Pola Setup</span>
+                <span>Harga Masuk</span>
+                <span>Target (TP)</span>
+                <span className="text-right">Aksi</span>
+              </div>
+              <div className="space-y-1 mt-1">
+                {marketSignals.map((sig) => {
+                  const isCurrent = sig.symbol === selectedInstrument.symbol;
+                  const isBull = sig.direction === 'BULLISH';
+                  return (
+                    <div
+                      key={sig.id}
+                      className={`grid grid-cols-7 items-center px-2 py-1.5 rounded border transition-colors ${
+                        isCurrent
+                          ? 'bg-slate-800/80 border-blue-500/40'
+                          : 'bg-[#0B0F1C] border-slate-800/80 hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <span className="text-white">{sig.symbol}</span>
+                        <span
+                          className={`text-[9px] px-1 py-0.2 rounded font-mono ${
+                            isBull
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : sig.direction === 'BEARISH'
+                              ? 'bg-rose-500/20 text-rose-400'
+                              : 'bg-amber-500/20 text-amber-400'
+                          }`}
+                        >
+                          {sig.direction}
+                        </span>
+                      </div>
+                      <span className="text-slate-300 font-semibold">{sig.timeframe}</span>
+                      <span className="col-span-2 text-slate-200 truncate pr-2">{sig.setup}</span>
+                      <span className="text-slate-300">${sig.price}</span>
+                      <span className="text-emerald-400 font-semibold">${sig.targetPrice}</span>
+                      <div className="text-right">
+                        <button
+                          onClick={() => {
+                            const found = instruments.find((i) => i.id === sig.instrumentId);
+                            if (found) onSelectInstrument(found);
+                          }}
+                          className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 transition-colors text-[11px]"
+                        >
+                          {isCurrent ? 'Aktif' : 'Buka Pair'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Tab 2: Pivot Points Table */}
-        {activeBottomTab === 'pivots' && (
-          <div className="flex-1 overflow-y-auto p-3 text-xs font-mono">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Tab 2: Pivot Points Table (Level Kunci) */}
+        {!isBottomCollapsed && activeBottomTab === 'pivots' && (
+          <div className="flex-1 overflow-y-auto p-2 sm:p-3 text-xs font-mono">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
               <div className="space-y-1.5 bg-[#0B0F1C] p-2.5 rounded border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block border-b border-slate-800/80 pb-1">
-                  Zona Resistance (Jual)
+                  Zona Resistance (Jual / Take Profit)
                 </span>
                 <div className="flex justify-between text-rose-400">
                   <span>Resistance 3 (R3)</span>
@@ -827,7 +907,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
 
               <div className="space-y-1.5 bg-[#0B0F1C] p-2.5 rounded border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block border-b border-slate-800/80 pb-1">
-                  Pivot & Zona Support (Beli)
+                  Pivot & Zona Support (Beli / Stop Loss)
                 </span>
                 <div className="flex justify-between text-blue-400 font-bold bg-slate-800/40 p-1 rounded">
                   <span>Pivot Point (P)</span>
@@ -850,49 +930,86 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
           </div>
         )}
 
-        {/* Tab 3: Multi-Timeframe Matrix */}
-        {activeBottomTab === 'indicators' && (
+        {/* Tab 3: Multi-Timeframe Matrix (Responsive Cards on Mobile / Table on Desktop) */}
+        {!isBottomCollapsed && activeBottomTab === 'indicators' && (
           <div className="flex-1 overflow-y-auto p-2 text-xs font-mono">
-            <div className="grid grid-cols-5 text-[10px] uppercase text-slate-400 px-2 py-1 border-b border-slate-800/60">
-              <span>Timeframe</span>
-              <span>Tren Utama</span>
-              <span>RSI (14)</span>
-              <span>MACD Status</span>
-              <span className="text-right">Volume Momentum</span>
-            </div>
-            <div className="space-y-1 mt-1">
+            {/* Mobile Matrix Card Grid (< sm screens) */}
+            <div className="sm:hidden grid grid-cols-2 gap-2">
               {tfMatrix.map((m) => (
-                <div
-                  key={m.timeframe}
-                  className="grid grid-cols-5 items-center px-2 py-1.5 bg-[#0B0F1C] rounded border border-slate-800 hover:bg-slate-800/40"
-                >
-                  <span className="font-bold text-slate-200">{m.timeframe}</span>
-                  <span
-                    className={
-                      m.trend === 'BULLISH'
-                        ? 'text-emerald-400 font-bold'
-                        : m.trend === 'BEARISH'
-                        ? 'text-rose-400 font-bold'
-                        : 'text-amber-400'
-                    }
-                  >
-                    {m.trend}
-                  </span>
-                  <span className="text-slate-100">{m.rsi}</span>
-                  <span
-                    className={
-                      m.macd === 'POSITIVE'
-                        ? 'text-emerald-400'
-                        : m.macd === 'NEGATIVE'
-                        ? 'text-rose-400'
-                        : 'text-slate-400'
-                    }
-                  >
-                    {m.macd}
-                  </span>
-                  <span className="text-right text-slate-300">{m.volumeTrend}</span>
+                <div key={m.timeframe} className="p-2 bg-[#0B0F1C] rounded border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">{m.timeframe}</span>
+                    <span
+                      className={`text-[9px] font-bold px-1 rounded ${
+                        m.trend === 'BULLISH'
+                          ? 'text-emerald-400 bg-emerald-500/10'
+                          : m.trend === 'BEARISH'
+                          ? 'text-rose-400 bg-rose-500/10'
+                          : 'text-amber-400 bg-amber-500/10'
+                      }`}
+                    >
+                      {m.trend}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>RSI:</span>
+                    <span className="text-white font-semibold">{m.rsi}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>MACD:</span>
+                    <span className={m.macd === 'POSITIVE' ? 'text-emerald-400 font-semibold' : m.macd === 'NEGATIVE' ? 'text-rose-400 font-semibold' : 'text-slate-300'}>{m.macd}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>Vol:</span>
+                    <span className="text-slate-300">{m.volumeTrend}</span>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* Desktop Table (>= sm screens) */}
+            <div className="hidden sm:block">
+              <div className="grid grid-cols-5 text-[10px] uppercase text-slate-400 px-2 py-1 border-b border-slate-800/60">
+                <span>Timeframe</span>
+                <span>Tren Utama</span>
+                <span>RSI (14)</span>
+                <span>MACD Status</span>
+                <span className="text-right">Volume Momentum</span>
+              </div>
+              <div className="space-y-1 mt-1">
+                {tfMatrix.map((m) => (
+                  <div
+                    key={m.timeframe}
+                    className="grid grid-cols-5 items-center px-2 py-1.5 bg-[#0B0F1C] rounded border border-slate-800 hover:bg-slate-800/40"
+                  >
+                    <span className="font-bold text-slate-200">{m.timeframe}</span>
+                    <span
+                      className={
+                        m.trend === 'BULLISH'
+                          ? 'text-emerald-400 font-bold'
+                          : m.trend === 'BEARISH'
+                          ? 'text-rose-400 font-bold'
+                          : 'text-amber-400'
+                      }
+                    >
+                      {m.trend}
+                    </span>
+                    <span className="text-slate-100">{m.rsi}</span>
+                    <span
+                      className={
+                        m.macd === 'POSITIVE'
+                          ? 'text-emerald-400'
+                          : m.macd === 'NEGATIVE'
+                          ? 'text-rose-400'
+                          : 'text-slate-400'
+                      }
+                    >
+                      {m.macd}
+                    </span>
+                    <span className="text-right text-slate-300">{m.volumeTrend}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
