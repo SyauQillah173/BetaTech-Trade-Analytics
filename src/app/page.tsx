@@ -114,7 +114,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#06080F] text-slate-100">
+    <div className="flex flex-col h-full h-[100dvh] w-full overflow-hidden bg-[#06080F] text-slate-100 select-none overscroll-none">
       {/* 1. Header / Top Bar */}
       <Header
         instruments={liveInstruments}

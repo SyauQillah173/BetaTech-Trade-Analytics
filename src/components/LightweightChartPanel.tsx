@@ -673,8 +673,8 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       </div>
 
       {/* Main Lightweight Charts Container */}
-      <div className="relative flex-1 bg-[#06080F] min-h-[300px] w-full overflow-hidden">
-        <div ref={chartContainerRef} className="w-full h-full" />
+      <div className="relative flex-1 bg-[#06080F] min-h-[260px] sm:min-h-[300px] w-full overflow-hidden touch-none select-none">
+        <div ref={chartContainerRef} className="w-full h-full touch-none select-none" />
 
         {/* RSI 14 Sub-indicator Pane (if toggled) */}
         {showRSI && (
