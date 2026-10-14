@@ -85,6 +85,9 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const lastCandleCountRef = useRef<number>(0);
   const hoverRafRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  // True while the chart container measured 0x0 (its tab is hidden); the next real
+  // measurement then needs an explicit repaint.
+  const wasCollapsedRef = useRef<boolean>(false);
 
   // Real-time market data hooks (SWR auto-refreshing every few seconds)
   const { candles, isValidating: isKlinesValidating, isLoading: isKlinesLoading } = useInstrumentKlines(selectedInstrument, timeframe);
@@ -185,7 +188,8 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         timeVisible: true,
         secondsVisible: false,
       },
-      autoSize: true,
+      // NOTE: autoSize is intentionally off. The ResizeObserver below is the single
+      // resize authority; running both made them fight over width/height.
     });
 
     chartRef.current = chart;
@@ -302,16 +306,30 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       });
     });
 
-    // ResizeObserver: 100% fluid responsive scaling on mobile, tablet, and desktop
+    // ResizeObserver: 100% fluid responsive scaling on mobile, tablet, and desktop.
+    // Skips 0x0 measurements (the chart is kept mounted while its tab is hidden, so the
+    // container collapses to width 0) and forces a repaint when the real size returns,
+    // otherwise the canvas stays blank until an unrelated event triggers a redraw.
     if (chartContainerRef.current) {
       const ro = new ResizeObserver((entries) => {
-        if (!entries || entries.length === 0 || !chartRef.current) return;
-        const { width, height } = entries[0].contentRect;
-        if (width > 0 && height > 0) {
-          requestAnimationFrame(() => {
-            chartRef.current?.applyOptions({ width, height });
-          });
+        const entry = entries?.[0];
+        if (!entry || !chartRef.current) return;
+        const { width, height } = entry.contentRect;
+        if (width <= 0 || height <= 0) {
+          wasCollapsedRef.current = true;
+          return;
         }
+        requestAnimationFrame(() => {
+          const chart = chartRef.current;
+          if (!chart) return;
+          chart.applyOptions({ width, height });
+          if (wasCollapsedRef.current) {
+            wasCollapsedRef.current = false;
+            // container just came back: re-anchor the viewport and repaint
+            chart.timeScale().fitContent();
+            chart.priceScale('right').applyOptions({ autoScale: true });
+          }
+        });
       });
       ro.observe(chartContainerRef.current);
       resizeObserverRef.current = ro;
@@ -333,7 +351,27 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
 
   // High-Performance Series Update (O(1) in-place tick update when candle moves fast)
   useEffect(() => {
-    if (!candles || candles.length === 0 || !chartRef.current) return;
+    if (!chartRef.current) return;
+
+    // New pair/timeframe selected but its candles are not loaded yet (SWR key changed,
+    // so `candles` is []). Clear the series and reset the tracked state: leaving the
+    // previous instrument's candles painted under the new header is what made the chart
+    // look stale until an unrelated repaint (scroll/resize) caught up.
+    if (!candles || candles.length === 0) {
+      if (lastInstrumentRef.current !== selectedInstrument.id || lastTfRef.current !== timeframe) {
+        lastInstrumentRef.current = selectedInstrument.id;
+        lastTfRef.current = timeframe;
+        lastCandleCountRef.current = 0;
+        lastCandleTimeRef.current = 0;
+        candleSeriesRef.current?.setData([]);
+        lineSeriesRef.current?.setData([]);
+        areaSeriesRef.current?.setData([]);
+        volumeSeriesRef.current?.setData([]);
+        ema20SeriesRef.current?.setData([]);
+        ema50SeriesRef.current?.setData([]);
+      }
+      return;
+    }
 
     const isInstrumentChanged = selectedInstrument.id !== lastInstrumentRef.current;
     const isTfChanged = timeframe !== lastTfRef.current;
@@ -419,6 +457,12 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
     // Adjust view bounds ONLY when instrument or timeframe changes
     if (isInstrumentChanged || isTfChanged) {
       chartRef.current?.timeScale().fitContent();
+      // Re-fit the price scale to the new instrument's range (BTC ~81k vs XAU ~4.1k)
+      // and repaint immediately so the new pair is visible without any user interaction.
+      chartRef.current?.priceScale('right').applyOptions({ autoScale: true });
+      requestAnimationFrame(() => {
+        chartRef.current?.timeScale().fitContent();
+      });
     }
   }, [candles, selectedInstrument.id, timeframe]);
 
