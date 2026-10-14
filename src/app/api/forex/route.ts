@@ -8,7 +8,12 @@ export const FOREX_YAHOO_MAP: Record<string, { yahooSymbol: string; id: string; 
   'USD/CAD': { yahooSymbol: 'USDCAD=X', id: 'usd-cad', decimals: 4, defaultVol: '$38.2B' },
   'USD/CHF': { yahooSymbol: 'USDCHF=X', id: 'usd-chf', decimals: 4, defaultVol: '$29.5B' },
   'NZD/USD': { yahooSymbol: 'NZDUSD=X', id: 'nzd-usd', decimals: 4, defaultVol: '$24.1B' },
+  'EUR/GBP': { yahooSymbol: 'EURGBP=X', id: 'eur-gbp', decimals: 4, defaultVol: '$16.3B' },
+  'EUR/JPY': { yahooSymbol: 'EURJPY=X', id: 'eur-jpy', decimals: 2, defaultVol: '$22.7B' },
+  'GBP/JPY': { yahooSymbol: 'GBPJPY=X', id: 'gbp-jpy', decimals: 2, defaultVol: '$18.5B' },
   'XAU/USD': { yahooSymbol: 'GC=F', id: 'xau-usd', decimals: 2, defaultVol: '$34.2B' },
+  'XAG/USD': { yahooSymbol: 'SI=F', id: 'xag-usd', decimals: 3, defaultVol: '$8.4B' },
+  'WTI/USD': { yahooSymbol: 'CL=F', id: 'wti-usd', decimals: 2, defaultVol: '$12.6B' },
 };
 
 function resolveYahooForexSymbol(symbol: string): { yahooSymbol: string; decimals: number; id: string } {

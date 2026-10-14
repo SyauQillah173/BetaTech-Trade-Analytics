@@ -38,7 +38,7 @@ export function resolveBinanceSymbol(instrument: { id?: string; symbol?: string;
   const sym = (instrument.symbol || '').toUpperCase();
   if (instrument.type === 'crypto' || sym.endsWith('/USD') || sym.endsWith('/USDT')) {
     const base = sym.split(/[-/_]/)[0];
-    const nonCrypto = ['EUR', 'GBP', 'USD', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU', 'WTI'];
+    const nonCrypto = ['EUR', 'GBP', 'USD', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU', 'XAG', 'WTI', 'CL'];
     if (base && !nonCrypto.includes(base)) {
       return `${base}USDT`;
     }
@@ -83,21 +83,57 @@ export async function fetchLiveCryptoTickers(): Promise<Record<string, LiveTicke
         };
       }
     }
-    // Merge live Forex & Commodities tickers
+    // Merge live Forex & Commodities tickers via /api/forex proxy (browser) or Yahoo Finance direct (server)
     try {
       const isBrowser = typeof window !== 'undefined';
-      const forexUrl = isBrowser ? '/api/forex?action=tickers' : 'https://open.er-api.com/v6/latest/USD';
-      const forexRes = await fetch(forexUrl, { cache: 'no-store' });
-      if (forexRes.ok) {
-        const data = await forexRes.json();
-        if (data.tickers) {
-          Object.assign(result, data.tickers);
-        } else if (data.rates) {
-          const rates = data.rates;
-          if (rates.EUR) result['eur-usd'] = { price: parseFloat((1 / rates.EUR).toFixed(4)), change24h: 0.28, high24h: parseFloat((1 / rates.EUR * 1.004).toFixed(4)), low24h: parseFloat((1 / rates.EUR * 0.996).toFixed(4)), volume24h: '$118.5B' };
-          if (rates.GBP) result['gbp-usd'] = { price: parseFloat((1 / rates.GBP).toFixed(4)), change24h: -0.15, high24h: parseFloat((1 / rates.GBP * 1.004).toFixed(4)), low24h: parseFloat((1 / rates.GBP * 0.996).toFixed(4)), volume24h: '$82.4B' };
-          if (rates.JPY) result['usd-jpy'] = { price: parseFloat(rates.JPY.toFixed(2)), change24h: -0.12, high24h: parseFloat((rates.JPY * 1.004).toFixed(2)), low24h: parseFloat((rates.JPY * 0.996).toFixed(2)), volume24h: '$96.1B' };
+      if (isBrowser) {
+        const forexRes = await fetch('/api/forex?action=tickers', { cache: 'no-store' });
+        if (forexRes.ok) {
+          const data = await forexRes.json();
+          if (data.tickers) {
+            Object.assign(result, data.tickers);
+          }
         }
+      } else {
+        // Server-side: fetch Yahoo Finance directly for each forex/commodity pair
+        const FOREX_PAIRS: Record<string, { yahooSymbol: string; id: string; decimals: number; defaultVol: string }> = {
+          'EUR/USD': { yahooSymbol: 'EURUSD=X', id: 'eur-usd', decimals: 4, defaultVol: '$118.5B' },
+          'GBP/USD': { yahooSymbol: 'GBPUSD=X', id: 'gbp-usd', decimals: 4, defaultVol: '$82.4B' },
+          'USD/JPY': { yahooSymbol: 'USDJPY=X', id: 'usd-jpy', decimals: 2, defaultVol: '$96.1B' },
+          'AUD/USD': { yahooSymbol: 'AUDUSD=X', id: 'aud-usd', decimals: 4, defaultVol: '$46.8B' },
+          'USD/CAD': { yahooSymbol: 'USDCAD=X', id: 'usd-cad', decimals: 4, defaultVol: '$38.2B' },
+          'USD/CHF': { yahooSymbol: 'USDCHF=X', id: 'usd-chf', decimals: 4, defaultVol: '$29.5B' },
+          'NZD/USD': { yahooSymbol: 'NZDUSD=X', id: 'nzd-usd', decimals: 4, defaultVol: '$24.1B' },
+          'EUR/GBP': { yahooSymbol: 'EURGBP=X', id: 'eur-gbp', decimals: 4, defaultVol: '$16.3B' },
+          'EUR/JPY': { yahooSymbol: 'EURJPY=X', id: 'eur-jpy', decimals: 2, defaultVol: '$22.7B' },
+          'GBP/JPY': { yahooSymbol: 'GBPJPY=X', id: 'gbp-jpy', decimals: 2, defaultVol: '$18.5B' },
+          'XAU/USD': { yahooSymbol: 'GC=F', id: 'xau-usd', decimals: 2, defaultVol: '$34.2B' },
+          'XAG/USD': { yahooSymbol: 'SI=F', id: 'xag-usd', decimals: 3, defaultVol: '$8.4B' },
+          'WTI/USD': { yahooSymbol: 'CL=F', id: 'wti-usd', decimals: 2, defaultVol: '$12.6B' },
+        };
+        await Promise.all(
+          Object.values(FOREX_PAIRS).map(async (cfg) => {
+            try {
+              const url = `https://query1.finance.yahoo.com/v8/finance/chart/${cfg.yahooSymbol}?interval=1h&range=1d`;
+              const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' });
+              if (res.ok) {
+                const data = await res.json();
+                const meta = data?.chart?.result?.[0]?.meta;
+                if (meta && typeof meta.regularMarketPrice === 'number') {
+                  result[cfg.id] = {
+                    price: parseFloat(meta.regularMarketPrice.toFixed(cfg.decimals)),
+                    change24h: parseFloat((meta.regularMarketChangePercent || meta.fulldayChangePercent || 0).toFixed(2)),
+                    high24h: parseFloat((meta.regularMarketDayHigh || meta.regularMarketPrice * 1.005).toFixed(cfg.decimals)),
+                    low24h: parseFloat((meta.regularMarketDayLow || meta.regularMarketPrice * 0.995).toFixed(cfg.decimals)),
+                    volume24h: cfg.defaultVol,
+                  };
+                }
+              }
+            } catch {
+              // Ignore single pair failure
+            }
+          })
+        );
       }
     } catch {
       // Ignore forex failure

@@ -29,8 +29,10 @@ const QUICK_PRESETS = [
   { symbol: 'SOL/USD', name: 'Solana', type: 'crypto' as const, price: 198.4 },
   { symbol: 'DOGE/USD', name: 'Dogecoin', type: 'crypto' as const, price: 0.38 },
   { symbol: 'XRP/USD', name: 'Ripple', type: 'crypto' as const, price: 2.15 },
-  { symbol: 'GBP/USD', name: 'British Pound', type: 'forex' as const, price: 1.285 },
-  { symbol: 'XAU/USD', name: 'Gold Spot', type: 'commodities' as const, price: 2745.0 },
+  { symbol: 'EUR/JPY', name: 'Euro / Yen', type: 'forex' as const, price: 163.25 },
+  { symbol: 'GBP/JPY', name: 'Pound / Yen', type: 'forex' as const, price: 195.40 },
+  { symbol: 'XAG/USD', name: 'Silver Spot', type: 'commodities' as const, price: 30.85 },
+  { symbol: 'WTI/USD', name: 'Crude Oil WTI', type: 'commodities' as const, price: 72.45 },
 ];
 
 export const SidebarLeft: React.FC<SidebarLeftProps> = ({
@@ -458,12 +460,14 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right font-mono">
                     <div className="text-xs font-semibold text-slate-100">
-                      ${inst.decimals > 2
+                      {inst.type === 'forex'
                         ? inst.price.toFixed(inst.decimals)
-                        : inst.price.toLocaleString('en-US', {
+                        : inst.decimals > 2
+                        ? `$${inst.price.toFixed(inst.decimals)}`
+                        : `$${inst.price.toLocaleString('en-US', {
                             minimumFractionDigits: inst.decimals,
                             maximumFractionDigits: inst.decimals,
-                          })}
+                          })}`}
                     </div>
                     <div
                       className={`inline-flex items-center justify-end text-[10px] px-1 py-0.2 rounded font-medium mt-0.5 ${
