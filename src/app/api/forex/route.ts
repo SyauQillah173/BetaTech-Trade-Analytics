@@ -177,6 +177,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Drop trailing in-progress bars: Yahoo emits a single-tick bar (H==L==C) for the
+    // candle that has only just opened, which renders as a flat artifact at the right edge.
+    while (candles.length > 1) {
+      const last = candles[candles.length - 1];
+      if (last.high === last.low && last.low === last.close) candles.pop();
+      else break;
+    }
+
     // Ambil sejumlah limit candlestick terakhir secara berurutan
     const sliced = candles.slice(-limit).sort((a, b) => a.time - b.time);
 

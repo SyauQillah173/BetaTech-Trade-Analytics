@@ -3,7 +3,6 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { CandleData, GeneratedAISignal, ICTSignalData } from '../../../types/market';
 import { analyzeTechnicalIndicators } from '../../../lib/indicators';
-import { generateCandleData } from '../../../data/mockData';
 
 // Helper: Temukan API Key 9Router dari environment atau database SQLite lokal secara otomatis
 function discover9RouterKey(): string {
@@ -190,37 +189,73 @@ async function fetchRealOrFallbackCandles(
         '1w': '1w',
       };
       const interval = tfMap[timeframe] || '1h';
-      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (res.ok) {
-        const rawKlines: Array<[number, string, string, string, string, string]> = await res.json();
-        if (Array.isArray(rawKlines) && rawKlines.length >= 15) {
-          return rawKlines.map((k) => {
-            const timeSec = Math.floor(Number(k[0]) / 1000);
-            const open = parseFloat(k[1]);
-            const high = parseFloat(k[2]);
-            const low = parseFloat(k[3]);
-            const close = parseFloat(k[4]);
-            const volume = parseFloat(k[5]);
-            return {
-              time: new Date(timeSec * 1000).toISOString().slice(11, 16),
-              timestamp: timeSec,
-              open,
-              high,
-              low,
-              close,
-              volume,
-              color: close >= open ? 'bull' : 'bear',
-            };
+      // api.binance.com is geo-blocked in some regions; the public data mirror is equivalent.
+      let rawKlines: Array<[number, string, string, string, string, string]> | null = null;
+      for (const host of ['https://data-api.binance.vision', 'https://api.binance.com']) {
+        try {
+          const res = await fetch(`${host}/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`, { cache: 'no-store' });
+          if (res.ok) {
+            const parsed = await res.json();
+            if (Array.isArray(parsed) && parsed.length >= 15) { rawKlines = parsed; break; }
+          }
+        } catch {
+          // try next host
+        }
+      }
+      if (rawKlines) {
+        return rawKlines.map((k) => {
+          const timeSec = Math.floor(Number(k[0]) / 1000);
+          const open = parseFloat(k[1]);
+          const high = parseFloat(k[2]);
+          const low = parseFloat(k[3]);
+          const close = parseFloat(k[4]);
+          const volume = parseFloat(k[5]);
+          return {
+            time: new Date(timeSec * 1000).toISOString().slice(11, 16),
+            timestamp: timeSec,
+            open,
+            high,
+            low,
+            close,
+            volume,
+            color: close >= open ? 'bull' : 'bear',
+          };
+        });
+      }
+
+      // Crypto fallback: Yahoo Finance (Binance can be unreachable entirely)
+      const base = cleanSym.replace(/USDT$/, '').replace(/USD$/, '');
+      const yahooRes = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${base}-USD?interval=1h&range=1mo`,
+        { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }
+      );
+      if (yahooRes.ok) {
+        const y = await yahooRes.json();
+        const r = y?.chart?.result?.[0];
+        const q = r?.indicators?.quote?.[0] || {};
+        const ts: number[] = r?.timestamp || [];
+        const out: CandleData[] = [];
+        for (let i = 0; i < ts.length; i++) {
+          const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i];
+          if (o == null || h == null || l == null || c == null) continue;
+          out.push({
+            time: new Date(ts[i] * 1000).toISOString().slice(11, 16),
+            timestamp: ts[i],
+            open: o, high: h, low: l, close: c,
+            volume: q.volume?.[i] || 0,
+            color: c >= o ? 'bull' : 'bear',
           });
         }
+        if (out.length >= 15) return out.slice(-50);
       }
     } catch {
       // Fallback
     }
   }
 
-  return generateCandleData(currentPrice, timeframe, 48);
+  // No real candles available: return empty rather than a synthetic series,
+  // which would make the AI reason about structure that never existed.
+  return [];
 }
 
 export async function POST(req: NextRequest) {

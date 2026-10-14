@@ -1,5 +1,4 @@
 import { Instrument, Timeframe, OrderBookLevel, RecentTrade } from '../types/market';
-import { generateCandleData, generateOrderBook, generateRecentTrades } from '../data/mockData';
 
 export interface ChartCandle {
   time: number; // Unix timestamp in seconds
@@ -18,18 +17,102 @@ export interface LiveTicker {
   volume24h: string;
 }
 
-export const CRYPTO_CONFIGS: Record<string, { binanceSymbol: string; coingeckoId: string }> = {
-  'btc-usd': { binanceSymbol: 'BTCUSDT', coingeckoId: 'bitcoin' },
-  'eth-usd': { binanceSymbol: 'ETHUSDT', coingeckoId: 'ethereum' },
-  'sol-usd': { binanceSymbol: 'SOLUSDT', coingeckoId: 'solana' },
-  'bnb-usd': { binanceSymbol: 'BNBUSDT', coingeckoId: 'binancecoin' },
-  'doge-usd': { binanceSymbol: 'DOGEUSDT', coingeckoId: 'dogecoin' },
-  'xrp-usd': { binanceSymbol: 'XRPUSDT', coingeckoId: 'ripple' },
-  'ada-usd': { binanceSymbol: 'ADAUSDT', coingeckoId: 'cardano' },
-  'avax-usd': { binanceSymbol: 'AVAXUSDT', coingeckoId: 'avalanche-2' },
-  'link-usd': { binanceSymbol: 'LINKUSDT', coingeckoId: 'chainlink' },
-  'sui-usd': { binanceSymbol: 'SUIUSDT', coingeckoId: 'sui' },
+export const CRYPTO_CONFIGS: Record<string, { binanceSymbol: string; coingeckoId: string; yahooSymbol: string }> = {
+  'btc-usd': { binanceSymbol: 'BTCUSDT', coingeckoId: 'bitcoin', yahooSymbol: 'BTC-USD' },
+  'eth-usd': { binanceSymbol: 'ETHUSDT', coingeckoId: 'ethereum', yahooSymbol: 'ETH-USD' },
+  'sol-usd': { binanceSymbol: 'SOLUSDT', coingeckoId: 'solana', yahooSymbol: 'SOL-USD' },
+  'bnb-usd': { binanceSymbol: 'BNBUSDT', coingeckoId: 'binancecoin', yahooSymbol: 'BNB-USD' },
+  'doge-usd': { binanceSymbol: 'DOGEUSDT', coingeckoId: 'dogecoin', yahooSymbol: 'DOGE-USD' },
+  'xrp-usd': { binanceSymbol: 'XRPUSDT', coingeckoId: 'ripple', yahooSymbol: 'XRP-USD' },
+  'ada-usd': { binanceSymbol: 'ADAUSDT', coingeckoId: 'cardano', yahooSymbol: 'ADA-USD' },
+  'avax-usd': { binanceSymbol: 'AVAXUSDT', coingeckoId: 'avalanche-2', yahooSymbol: 'AVAX-USD' },
+  'link-usd': { binanceSymbol: 'LINKUSDT', coingeckoId: 'chainlink', yahooSymbol: 'LINK-USD' },
+  'sui-usd': { binanceSymbol: 'SUIUSDT', coingeckoId: 'sui', yahooSymbol: 'SUI-USD' },
 };
+
+// api.binance.com is geo-blocked from some regions (HTTP 000); the public data
+// mirror serves the same REST surface, so try it first and keep the original as fallback.
+const BINANCE_HOSTS = [
+  'https://data-api.binance.vision',
+  'https://api.binance.com',
+];
+
+// Fetch a Binance REST path, failing over across hosts. Returns null when every host is unreachable.
+export async function fetchBinance(path: string): Promise<unknown | null> {
+  for (const host of BINANCE_HOSTS) {
+    try {
+      const res = await fetch(`${host}${path}`, { cache: 'no-store' });
+      if (res.ok) return await res.json();
+    } catch {
+      // try next host
+    }
+  }
+  return null;
+}
+
+// Fetch candles for any Yahoo-symbol from Yahoo Finance (crypto + forex/commodity fallback)
+export async function fetchYahooKlines(
+  yahooSymbol: string,
+  timeframe: Timeframe,
+  limit: number
+): Promise<ChartCandle[]> {
+  const tfMap: Record<Timeframe, { interval: string; range: string }> = {
+    '1m': { interval: '1m', range: '1d' },
+    '5m': { interval: '5m', range: '1d' },
+    '15m': { interval: '15m', range: '5d' },
+    '1h': { interval: '1h', range: '1mo' },
+    '4h': { interval: '1h', range: '3mo' },
+    '1d': { interval: '1d', range: '1y' },
+    '1w': { interval: '1wk', range: '2y' },
+  };
+  const { interval, range } = tfMap[timeframe] || tfMap['1h'];
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${interval}&range=${range}`;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result?.timestamp) return [];
+
+    const q = result.indicators?.quote?.[0] || {};
+    const candles: ChartCandle[] = [];
+    for (let i = 0; i < result.timestamp.length; i++) {
+      const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i];
+      if (o == null || h == null || l == null || c == null) continue;
+      candles.push({
+        time: result.timestamp[i],
+        open: o,
+        high: h,
+        low: l,
+        close: c,
+        volume: q.volume?.[i] ?? 0,
+      });
+    }
+    // 4h is built from 1h bars: group consecutive bars into 4-bar buckets
+    const out = timeframe === '4h' ? groupCandles(candles, 4) : candles;
+    return out.slice(-limit);
+  } catch {
+    return [];
+  }
+}
+
+// Aggregate N consecutive candles into one OHLCV bar
+function groupCandles(candles: ChartCandle[], size: number): ChartCandle[] {
+  const out: ChartCandle[] = [];
+  for (let i = 0; i < candles.length; i += size) {
+    const chunk = candles.slice(i, i + size);
+    if (!chunk.length) continue;
+    out.push({
+      time: chunk[0].time,
+      open: chunk[0].open,
+      high: Math.max(...chunk.map((c) => c.high)),
+      low: Math.min(...chunk.map((c) => c.low)),
+      close: chunk[chunk.length - 1].close,
+      volume: chunk.reduce((sum, c) => sum + c.volume, 0),
+    });
+  }
+  return out;
+}
 
 export function resolveBinanceSymbol(instrument: { id?: string; symbol?: string; type?: string }): string | null {
   if (instrument.id && CRYPTO_CONFIGS[instrument.id]) {
@@ -57,18 +140,16 @@ export function formatVolume(val: number): string {
 export async function fetchLiveCryptoTickers(): Promise<Record<string, LiveTicker>> {
   try {
     const symbols = Object.values(CRYPTO_CONFIGS).map(c => c.binanceSymbol);
-    const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Binance ticker HTTP ${res.status}`);
-
-    const rawList: Array<{
+    const path = `/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
+    const rawList = await fetchBinance(path) as Array<{
       symbol: string;
       lastPrice: string;
       priceChangePercent: string;
       highPrice: string;
       lowPrice: string;
       quoteVolume: string;
-    }> = await res.json();
+    }> | null;
+    if (!rawList) throw new Error('Binance ticker unreachable on all hosts');
 
     const result: Record<string, LiveTicker> = {};
     for (const [id, config] of Object.entries(CRYPTO_CONFIGS)) {
@@ -141,130 +222,112 @@ export async function fetchLiveCryptoTickers(): Promise<Record<string, LiveTicke
 
     return result;
   } catch {
-    // Fallback to CoinGecko Simple Price
-    try {
-      const ids = Object.values(CRYPTO_CONFIGS).map(c => c.coingeckoId).join(',');
-      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
-
-      const data: Record<string, { usd: number; usd_24h_vol: number; usd_24h_change: number }> = await res.json();
-      const result: Record<string, LiveTicker> = {};
-
-      for (const [id, config] of Object.entries(CRYPTO_CONFIGS)) {
-        const item = data[config.coingeckoId];
-        if (item) {
+    // Fallback: Yahoo Finance crypto quotes (Binance mirror and CoinGecko can both be unreachable/rate-limited)
+    const result: Record<string, LiveTicker> = {};
+    await Promise.all(
+      Object.entries(CRYPTO_CONFIGS).map(async ([id, config]) => {
+        try {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${config.yahooSymbol}?interval=1h&range=1d`;
+          const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' });
+          if (!res.ok) return;
+          const meta = (await res.json())?.chart?.result?.[0]?.meta;
+          if (!meta || typeof meta.regularMarketPrice !== 'number') return;
           result[id] = {
-            price: item.usd,
-            change24h: parseFloat(item.usd_24h_change.toFixed(2)),
-            high24h: item.usd * 1.02,
-            low24h: item.usd * 0.98,
-            volume24h: formatVolume(item.usd_24h_vol),
+            price: meta.regularMarketPrice,
+            change24h: parseFloat((meta.regularMarketChangePercent || meta.fulldayChangePercent || 0).toFixed(2)),
+            high24h: meta.regularMarketDayHigh || meta.regularMarketPrice * 1.02,
+            low24h: meta.regularMarketDayLow || meta.regularMarketPrice * 0.98,
+            volume24h: meta.regularMarketVolume ? formatVolume(meta.regularMarketVolume) : '--',
           };
+        } catch {
+          // ignore single pair
         }
-      }
-      return result;
-    } catch {
-      return {};
-    }
+      })
+    );
+    return result;
   }
 }
 
-// Fetch Klines (Candlesticks) from Binance / Yahoo Finance with fallback to generated data
+// Yahoo symbols for forex & commodity instruments (mirrors the /api/forex route map)
+const YAHOO_FOREX_MAP: Record<string, string> = {
+  'EUR/USD': 'EURUSD=X', 'GBP/USD': 'GBPUSD=X', 'USD/JPY': 'USDJPY=X', 'AUD/USD': 'AUDUSD=X',
+  'USD/CAD': 'USDCAD=X', 'USD/CHF': 'USDCHF=X', 'NZD/USD': 'NZDUSD=X', 'EUR/GBP': 'EURGBP=X',
+  'EUR/JPY': 'EURJPY=X', 'GBP/JPY': 'GBPJPY=X', 'XAU/USD': 'GC=F', 'XAG/USD': 'SI=F', 'WTI/USD': 'CL=F',
+};
+
+// Server-side forex/commodity candles (the /api/forex route is browser-only)
+export async function fetchYahooForexKlines(
+  symbol: string,
+  timeframe: Timeframe,
+  limit: number
+): Promise<ChartCandle[]> {
+  const clean = symbol.toUpperCase().trim();
+  const yahooSymbol = YAHOO_FOREX_MAP[clean]
+    || (clean.includes('/') ? `${clean.replace('/', '')}=X` : `${clean}=X`);
+  return fetchYahooKlines(yahooSymbol, timeframe, limit);
+}
+
+// Fetch Klines (Candlesticks). Real market data only — Binance mirror -> Yahoo.
+// Never synthesises candles: a fabricated series would silently drive the ICT engine on fake structure.
 export async function fetchKlines(
   instrument: Instrument,
   timeframe: Timeframe,
   limit: number = 100
 ): Promise<ChartCandle[]> {
+  // 1. Crypto via Binance (host failover)
   const binanceSymbol = resolveBinanceSymbol(instrument);
-
   if (binanceSymbol) {
-    try {
-      const tfMap: Record<Timeframe, string> = {
-        '1m': '1m',
-        '5m': '5m',
-        '15m': '15m',
-        '1h': '1h',
-        '4h': '4h',
-        '1d': '1d',
-        '1w': '1w',
-      };
-      const interval = tfMap[timeframe] || '1h';
-      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Binance klines HTTP ${res.status}`);
-
-      const rawKlines: Array<[number, string, string, string, string, string]> = await res.json();
-      
-      const map = new Map<number, ChartCandle>();
-      for (const k of rawKlines) {
-        const timeSec = Math.floor(Number(k[0]) / 1000);
-        map.set(timeSec, {
-          time: timeSec,
+    const tfMap: Record<Timeframe, string> = {
+      '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w',
+    };
+    const interval = tfMap[timeframe] || '1h';
+    const raw = await fetchBinance(`/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`) as
+      Array<[number, string, string, string, string, string]> | null;
+    if (raw && Array.isArray(raw) && raw.length) {
+      return raw
+        .map((k) => ({
+          time: Math.floor(Number(k[0]) / 1000),
           open: parseFloat(k[1]),
           high: parseFloat(k[2]),
           low: parseFloat(k[3]),
           close: parseFloat(k[4]),
           volume: parseFloat(k[5]),
-        });
-      }
-      return Array.from(map.values()).sort((a, b) => a.time - b.time);
-    } catch {
-      // Proceed to fallback generator
+        }))
+        .sort((a, b) => a.time - b.time);
+    }
+    // 2. Crypto fallback: Yahoo Finance
+    const cfg = instrument.id ? CRYPTO_CONFIGS[instrument.id] : undefined;
+    if (cfg) {
+      const yahoo = await fetchYahooKlines(cfg.yahooSymbol, timeframe, limit);
+      if (yahoo.length) return yahoo;
     }
   }
 
-  // 2. Jika Forex atau Komoditas, ambil candlestick riil dari API /api/forex
+  // 3. Forex & commodities via the Yahoo-backed /api/forex proxy
   if (instrument.type === 'forex' || instrument.type === 'commodities') {
-    try {
-      const isBrowser = typeof window !== 'undefined';
-      const url = isBrowser
-        ? `/api/forex?symbol=${encodeURIComponent(instrument.symbol)}&timeframe=${timeframe}&limit=${limit}`
-        : null;
-
-      if (url) {
-        const res = await fetch(url, { cache: 'no-store' });
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch(
+          `/api/forex?symbol=${encodeURIComponent(instrument.symbol)}&timeframe=${timeframe}&limit=${limit}`,
+          { cache: 'no-store' }
+        );
         if (res.ok) {
           const data = await res.json();
-          if (data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
-            return data.candles;
-          }
+          if (Array.isArray(data.candles) && data.candles.length > 0) return data.candles;
         }
+      } catch {
+        // fall through to empty
       }
-    } catch {
-      // Proceed to fallback generator
+    } else {
+      // Server-side (SSR): call the same route logic via its Yahoo helper
+      const yahoo = await fetchYahooForexKlines(instrument.symbol, timeframe, limit);
+      if (yahoo.length) return yahoo;
     }
   }
 
-  // Fallback for Forex / Commodities or offline: mock generator with ascending UTC timestamps
-  const rawCandles = generateCandleData(instrument.price, timeframe, limit);
-  const tfSeconds: Record<Timeframe, number> = {
-    '1m': 60,
-    '5m': 300,
-    '15m': 900,
-    '1h': 3600,
-    '4h': 14400,
-    '1d': 86400,
-    '1w': 604800,
-  };
-  const step = tfSeconds[timeframe] || 3600;
-  const now = Math.floor(Date.now() / 1000);
-  const startTime = now - rawCandles.length * step;
-
-  const map = new Map<number, ChartCandle>();
-  rawCandles.forEach((c, idx) => {
-    const time = startTime + idx * step;
-    map.set(time, {
-      time,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-      volume: c.volume,
-    });
-  });
-
-  return Array.from(map.values()).sort((a, b) => a.time - b.time);
+  // No real data available: return empty so the chart shows an explicit empty state
+  // instead of a synthetic series that would look like live structure.
+  return [];
 }
 
 // Fetch Order Book (bids & asks)
@@ -274,11 +337,9 @@ export async function fetchOrderBook(
   const binanceSymbol = resolveBinanceSymbol(instrument);
   if (binanceSymbol) {
     try {
-      const url = `https://api.binance.com/api/v3/depth?symbol=${binanceSymbol}&limit=8`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Binance depth HTTP ${res.status}`);
-
-      const data: { bids: [string, string][]; asks: [string, string][] } = await res.json();
+      const data = await fetchBinance(`/api/v3/depth?symbol=${binanceSymbol}&limit=8`) as
+        { bids: [string, string][]; asks: [string, string][] } | null;
+      if (!data) throw new Error('Binance depth unreachable on all hosts');
       
       let runningBidTotal = 0;
       const bids: OrderBookLevel[] = data.bids.slice(0, 6).map(([p, s]) => {
@@ -312,7 +373,8 @@ export async function fetchOrderBook(
     }
   }
 
-  return generateOrderBook(instrument.price, instrument.decimals);
+  // No depth feed available: empty book instead of a fabricated one.
+  return { bids: [], asks: [] };
 }
 
 // Fetch Recent Trades
@@ -322,17 +384,14 @@ export async function fetchRecentTrades(
   const binanceSymbol = resolveBinanceSymbol(instrument);
   if (binanceSymbol) {
     try {
-      const url = `https://api.binance.com/api/v3/trades?symbol=${binanceSymbol}&limit=12`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Binance trades HTTP ${res.status}`);
-
-      const data: Array<{
+      const data = await fetchBinance(`/api/v3/trades?symbol=${binanceSymbol}&limit=12`) as Array<{
         id: number;
         price: string;
         qty: string;
         time: number;
         isBuyerMaker: boolean;
-      }> = await res.json();
+      }> | null;
+      if (!data) throw new Error('Binance trades unreachable on all hosts');
 
       return data.reverse().map(t => {
         const d = new Date(t.time);
@@ -350,7 +409,8 @@ export async function fetchRecentTrades(
     }
   }
 
-  return generateRecentTrades(instrument.price, instrument.decimals);
+  // No trade feed available: empty list instead of fabricated prints.
+  return [];
 }
 
 // Resolve a real 24h ticker for an arbitrary instrument (crypto via Binance, forex/commodity via /api/forex)
@@ -358,16 +418,14 @@ export async function fetchLiveTickerFor(instrument: Instrument): Promise<LiveTi
   const binanceSymbol = resolveBinanceSymbol(instrument);
   if (binanceSymbol) {
     try {
-      const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) return null;
-      const t: {
+      const t = await fetchBinance(`/api/v3/ticker/24hr?symbol=${binanceSymbol}`) as {
         lastPrice: string;
         priceChangePercent: string;
         highPrice: string;
         lowPrice: string;
         quoteVolume: string;
-      } = await res.json();
+      } | null;
+      if (!t) return null;
       return {
         price: parseFloat(t.lastPrice),
         change24h: parseFloat(parseFloat(t.priceChangePercent).toFixed(2)),

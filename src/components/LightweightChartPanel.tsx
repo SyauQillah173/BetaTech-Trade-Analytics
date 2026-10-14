@@ -87,7 +87,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // Real-time market data hooks (SWR auto-refreshing every few seconds)
-  const { candles, isValidating: isKlinesValidating } = useInstrumentKlines(selectedInstrument, timeframe);
+  const { candles, isValidating: isKlinesValidating, isLoading: isKlinesLoading } = useInstrumentKlines(selectedInstrument, timeframe);
 
   // Technical overview and multi-pair signals
   const technical = useMemo(() => getTechnicalOverview(selectedInstrument), [selectedInstrument]);
@@ -676,6 +676,18 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
       {/* Main Lightweight Charts Container (Responsive flex height) */}
       <div className="relative w-full h-[280px] sm:h-[320px] lg:h-auto lg:flex-1 min-h-[160px] shrink-0 lg:shrink bg-[#06080F] overflow-hidden select-none">
         <div ref={chartContainerRef} className="w-full h-full touch-none select-none" />
+
+        {/* Explicit empty state: never render a synthetic series when the feed is down */}
+        {!isKlinesLoading && candles.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6 pointer-events-none">
+            <AlertTriangle className="w-6 h-6 text-amber-400" />
+            <span className="text-xs font-semibold text-amber-300">Data candle tidak tersedia</span>
+            <span className="text-[11px] text-slate-400 leading-relaxed">
+              Feed {selectedInstrument.symbol} sedang tidak merespons. Grafik sengaja dikosongkan
+              daripada menampilkan candle sintetis yang bukan harga pasar.
+            </span>
+          </div>
+        )}
 
         {/* RSI 14 Sub-indicator Pane (if toggled) */}
         {showRSI && (
