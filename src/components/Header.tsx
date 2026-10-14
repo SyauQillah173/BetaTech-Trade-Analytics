@@ -14,6 +14,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { Instrument } from '../types/market';
+import { formatQuote } from '../lib/format';
 
 interface HeaderProps {
   instruments: Instrument[];
@@ -120,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <span className="text-slate-200 font-medium">{inst.symbol}</span>
                   <span className="font-mono text-[11px] text-slate-100">
-                    ${inst.decimals > 2 ? displayPrice.toFixed(inst.decimals) : displayPrice.toLocaleString('en-US', { minimumFractionDigits: inst.decimals, maximumFractionDigits: inst.decimals })}
+                    {formatQuote(displayPrice, inst.decimals, inst.type)}
                   </span>
                   <span
                     className={`text-[10px] font-mono ${

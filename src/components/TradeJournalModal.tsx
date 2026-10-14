@@ -20,6 +20,7 @@ import {
   Layers,
   ArrowRight
 } from 'lucide-react';
+import { formatQuote } from '../lib/format';
 import { Instrument, GeneratedAISignal } from '../types/market';
 import { TradeJournalRecord } from '../lib/db';
 
@@ -436,15 +437,15 @@ export const TradeJournalModal: React.FC<TradeJournalModalProps> = ({
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[10px] bg-black/40 p-2 rounded-lg border border-slate-800/80">
                         <div>
                           <div className="text-slate-500 font-sans">Harga Masuk</div>
-                          <div className="text-slate-100 font-bold">${trade.entryPrice}</div>
+                          <div className="text-slate-100 font-bold">{formatQuote(trade.entryPrice, selectedInstrument.decimals, selectedInstrument.type)}</div>
                         </div>
                         <div>
                           <div className="text-slate-500 font-sans">Stop Loss</div>
-                          <div className="text-rose-400 font-semibold">${trade.stopLoss}</div>
+                          <div className="text-rose-400 font-semibold">{formatQuote(trade.stopLoss, selectedInstrument.decimals, selectedInstrument.type)}</div>
                         </div>
                         <div>
                           <div className="text-slate-500 font-sans">Take Profit</div>
-                          <div className="text-emerald-400 font-semibold">${trade.takeProfit}</div>
+                          <div className="text-emerald-400 font-semibold">{formatQuote(trade.takeProfit, selectedInstrument.decimals, selectedInstrument.type)}</div>
                         </div>
                         <div>
                           <div className="text-slate-500 font-sans">Ukuran Posisi</div>

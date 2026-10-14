@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Target
 } from 'lucide-react';
+import { formatQuote } from '../lib/format';
 import { Instrument, GeneratedAISignal, Timeframe } from '../types/market';
 import { 
   generateMarketSignals, 
@@ -405,21 +406,21 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 <div className="p-2 rounded-lg bg-black/40 border border-slate-800/80">
                   <span className="text-[10px] text-slate-400 block font-sans">Harga Masuk (Entry)</span>
                   <span className="font-bold text-white text-sm mt-0.5 block">
-                    ${generatedSignal.currentPrice}
+                    {formatQuote(generatedSignal.currentPrice, selectedInstrument.decimals, selectedInstrument.type)}
                   </span>
                 </div>
 
                 <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                   <span className="text-[10px] text-emerald-400 block font-sans">Target (TP)</span>
                   <span className="font-bold text-emerald-300 text-sm mt-0.5 block">
-                    ${generatedSignal.targetPrice}
+                    {formatQuote(generatedSignal.targetPrice, selectedInstrument.decimals, selectedInstrument.type)}
                   </span>
                 </div>
 
                 <div className="p-2 rounded-lg bg-rose-500/5 border border-rose-500/20">
                   <span className="text-[10px] text-rose-400 block font-sans">Stop Loss (Anti-Hunt)</span>
                   <span className="font-bold text-rose-300 text-sm mt-0.5 block">
-                    ${generatedSignal.stopLoss}
+                    {formatQuote(generatedSignal.stopLoss, selectedInstrument.decimals, selectedInstrument.type)}
                   </span>
                 </div>
 
@@ -496,7 +497,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `Signal (${generatedSignal.symbol}): ${generatedSignal.signal} | Entry: $${generatedSignal.currentPrice} | TP: $${generatedSignal.targetPrice} | SL: $${generatedSignal.stopLoss}`
+                      `Signal (${generatedSignal.symbol}): ${generatedSignal.signal} | Entry: ${formatQuote(generatedSignal.currentPrice, selectedInstrument.decimals, selectedInstrument.type)} | TP: ${formatQuote(generatedSignal.targetPrice, selectedInstrument.decimals, selectedInstrument.type)} | SL: ${formatQuote(generatedSignal.stopLoss, selectedInstrument.decimals, selectedInstrument.type)}`
                     );
                     setSignalCopied(true);
                     setTimeout(() => setSignalCopied(false), 2000);
@@ -527,7 +528,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                 </div>
                 <div className="flex justify-between text-slate-300">
                   <span>Harga:</span>
-                  <span className="text-white">${selectedInstrument.price}</span>
+                  <span className="text-white">{formatQuote(selectedInstrument.price, selectedInstrument.decimals, selectedInstrument.type)}</span>
                 </div>
                 <div className="flex justify-between text-slate-300">
                   <span>Bias Teknikal:</span>
@@ -610,11 +611,11 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
                   <div className="grid grid-cols-2 gap-2 text-[10px] font-mono bg-black/30 p-1.5 rounded">
                     <div>
                       <span className="text-slate-500">Target:</span>{' '}
-                      <span className="text-emerald-400 font-semibold">${sig.targetPrice}</span>
+                      <span className="text-emerald-400 font-semibold">{formatQuote(sig.targetPrice, selectedInstrument.decimals, selectedInstrument.type)}</span>
                     </div>
                     <div>
                       <span className="text-slate-500">Invalidasi:</span>{' '}
-                      <span className="text-rose-400 font-semibold">${sig.invalidationPrice}</span>
+                      <span className="text-rose-400 font-semibold">{formatQuote(sig.invalidationPrice, selectedInstrument.decimals, selectedInstrument.type)}</span>
                     </div>
                   </div>
                 </div>
@@ -705,11 +706,11 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div className="bg-black/40 p-2 rounded border border-slate-800/80">
                 <div className="text-[9px] text-slate-400 uppercase font-sans">PDH (BSL / High 24h)</div>
-                <div className="text-emerald-400 font-bold mt-0.5">${technical.pdh || selectedInstrument.high24h}</div>
+                <div className="text-emerald-400 font-bold mt-0.5">{formatQuote(technical.pdh || selectedInstrument.high24h, selectedInstrument.decimals, selectedInstrument.type)}</div>
               </div>
               <div className="bg-black/40 p-2 rounded border border-slate-800/80">
                 <div className="text-[9px] text-slate-400 uppercase font-sans">PDL (SSL / Low 24h)</div>
-                <div className="text-rose-400 font-bold mt-0.5">${technical.pdl || selectedInstrument.low24h}</div>
+                <div className="text-rose-400 font-bold mt-0.5">{formatQuote(technical.pdl || selectedInstrument.low24h, selectedInstrument.decimals, selectedInstrument.type)}</div>
               </div>
             </div>
 
@@ -739,23 +740,23 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
             <div className="space-y-1 font-mono text-[10px]">
               <div className="flex justify-between px-2 py-0.5 text-rose-400">
                 <span>Resistance 2 (R2)</span>
-                <span className="font-semibold">${technical.r2}</span>
+                <span className="font-semibold">{formatQuote(technical.r2, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
               <div className="flex justify-between px-2 py-0.5 text-rose-400/80">
                 <span>Resistance 1 (R1)</span>
-                <span>${technical.r1}</span>
+                <span>{formatQuote(technical.r1, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
               <div className="flex justify-between px-2 py-1 bg-slate-800/50 rounded text-blue-400 font-bold border border-slate-700/60">
                 <span>Pivot Point (P)</span>
-                <span>${technical.pivot}</span>
+                <span>{formatQuote(technical.pivot, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
               <div className="flex justify-between px-2 py-0.5 text-emerald-400/80">
                 <span>Support 1 (S1)</span>
-                <span>${technical.s1}</span>
+                <span>{formatQuote(technical.s1, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
               <div className="flex justify-between px-2 py-0.5 text-emerald-400">
                 <span>Support 2 (S2)</span>
-                <span className="font-semibold">${technical.s2}</span>
+                <span className="font-semibold">{formatQuote(technical.s2, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
             </div>
           </div>
@@ -773,8 +774,8 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
               />
             </div>
             <div className="flex justify-between text-[10px] font-mono text-slate-500">
-              <span>Low: ${selectedInstrument.low24h}</span>
-              <span>High: ${selectedInstrument.high24h}</span>
+              <span>Low: {formatQuote(selectedInstrument.low24h, selectedInstrument.decimals, selectedInstrument.type)}</span>
+              <span>High: {formatQuote(selectedInstrument.high24h, selectedInstrument.decimals, selectedInstrument.type)}</span>
             </div>
           </div>
 
@@ -832,7 +833,7 @@ export const AnalyticsPanelRight: React.FC<SidePanelRightProps> = ({
 
                 <div className="text-right font-mono">
                   <div className="font-semibold text-slate-100">
-                    ${inst.decimals > 2 ? inst.price.toFixed(inst.decimals) : inst.price.toLocaleString('en-US')}
+                    {formatQuote(inst.price, inst.decimals, inst.type)}
                   </div>
                   <span
                     className={`text-[10px] font-bold px-1 py-0.2 rounded ${

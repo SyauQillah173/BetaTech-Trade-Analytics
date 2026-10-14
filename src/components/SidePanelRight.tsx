@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Clock
 } from 'lucide-react';
+import { formatQuote } from '../lib/format';
 import { Instrument, AISignal, Position, GeneratedAISignal } from '../types/market';
 import { AI_SIGNALS_DATA } from '../data/mockData';
 
@@ -484,7 +485,7 @@ export const SidePanelRight: React.FC<SidePanelRightProps> = ({
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    `BetaTech Trade: ${direction} ${selectedInstrument.symbol} | Entry: $${entryPrice} | SL: $${stopLossPrice} | TP: $${takeProfitPrice} | R:R 1:${riskRewardRatio.toFixed(2)}`
+                    `BetaTech Trade: ${direction} ${selectedInstrument.symbol} | Entry: ${formatQuote(entryPrice, selectedInstrument.decimals, selectedInstrument.type)} | SL: ${formatQuote(stopLossPrice, selectedInstrument.decimals, selectedInstrument.type)} | TP: ${formatQuote(takeProfitPrice, selectedInstrument.decimals, selectedInstrument.type)} | R:R 1:${riskRewardRatio.toFixed(2)}`
                   );
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
@@ -726,7 +727,7 @@ export const SidePanelRight: React.FC<SidePanelRightProps> = ({
                       Target Price
                     </div>
                     <div className="text-emerald-300 font-bold text-xs mt-0.5">
-                      ${generatedSignal.targetPrice}
+                      {formatQuote(generatedSignal.targetPrice, selectedInstrument.decimals, selectedInstrument.type)}
                     </div>
                   </div>
 
@@ -735,7 +736,7 @@ export const SidePanelRight: React.FC<SidePanelRightProps> = ({
                       Stop Loss
                     </div>
                     <div className="text-rose-300 font-bold text-xs mt-0.5">
-                      ${generatedSignal.stopLoss}
+                      {formatQuote(generatedSignal.stopLoss, selectedInstrument.decimals, selectedInstrument.type)}
                     </div>
                   </div>
                 </div>
@@ -764,7 +765,7 @@ export const SidePanelRight: React.FC<SidePanelRightProps> = ({
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `AI Signal (${generatedSignal.symbol}): ${generatedSignal.signal} | Target: $${generatedSignal.targetPrice} | SL: $${generatedSignal.stopLoss} | ${generatedSignal.reason}`
+                        `AI Signal (${generatedSignal.symbol}): ${generatedSignal.signal} | Target: ${formatQuote(generatedSignal.targetPrice, selectedInstrument.decimals, selectedInstrument.type)} | SL: ${formatQuote(generatedSignal.stopLoss, selectedInstrument.decimals, selectedInstrument.type)} | ${generatedSignal.reason}`
                       );
                       setSignalCopied(true);
                       setTimeout(() => setSignalCopied(false), 2000);
@@ -834,11 +835,11 @@ export const SidePanelRight: React.FC<SidePanelRightProps> = ({
                   </div>
                   <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/30">
                     <div className="text-[9px] text-emerald-400 uppercase">Target 1</div>
-                    <div className="text-emerald-300 font-bold">${currentPresetAISignal.target1}</div>
+                    <div className="text-emerald-300 font-bold">{formatQuote(currentPresetAISignal.target1, selectedInstrument.decimals, selectedInstrument.type)}</div>
                   </div>
                   <div className="p-2 rounded bg-rose-500/10 border border-rose-500/30">
                     <div className="text-[9px] text-rose-400 uppercase">Stop Loss</div>
-                    <div className="text-rose-300 font-bold">${currentPresetAISignal.stopLoss}</div>
+                    <div className="text-rose-300 font-bold">{formatQuote(currentPresetAISignal.stopLoss, selectedInstrument.decimals, selectedInstrument.type)}</div>
                   </div>
                 </div>
 

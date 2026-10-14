@@ -33,6 +33,7 @@ import {
   UTCTimestamp,
 } from 'lightweight-charts';
 import { Instrument, Timeframe, CandleData } from '../types/market';
+import { formatQuote } from '../lib/format';
 import { useInstrumentKlines } from '../hooks/useMarketData';
 import { calculateEMA, calculateRSI } from '../services/marketApi';
 import { 
@@ -454,7 +455,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: `PIVOT $${technical.pivot}`,
+        title: `PIVOT ${formatQuote(technical.pivot, selectedInstrument.decimals, selectedInstrument.type)}`,
       });
       const r1Line = cs.createPriceLine({
         price: technical.r1,
@@ -462,7 +463,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         lineWidth: 1,
         lineStyle: LineStyle.Dotted,
         axisLabelVisible: true,
-        title: `R1 $${technical.r1}`,
+        title: `R1 ${formatQuote(technical.r1, selectedInstrument.decimals, selectedInstrument.type)}`,
       });
       const s1Line = cs.createPriceLine({
         price: technical.s1,
@@ -470,7 +471,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         lineWidth: 1,
         lineStyle: LineStyle.Dotted,
         axisLabelVisible: true,
-        title: `S1 $${technical.s1}`,
+        title: `S1 ${formatQuote(technical.s1, selectedInstrument.decimals, selectedInstrument.type)}`,
       });
       pivotLinesRef.current = [pLine, r1Line, s1Line];
     } catch {
@@ -500,12 +501,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
           {/* Current Live Price */}
           <div className="flex items-baseline gap-1.5 sm:gap-2">
             <span className="text-base sm:text-lg md:text-xl font-bold font-mono text-white tracking-tight">
-              ${selectedInstrument.decimals > 2
-                ? selectedInstrument.price.toFixed(selectedInstrument.decimals)
-                : selectedInstrument.price.toLocaleString('en-US', {
-                    minimumFractionDigits: selectedInstrument.decimals,
-                    maximumFractionDigits: selectedInstrument.decimals,
-                  })}
+              {formatQuote(selectedInstrument.price, selectedInstrument.decimals, selectedInstrument.type)}
             </span>
             <span
               className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${
@@ -525,17 +521,13 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
           <div>
             <div className="text-[10px] text-slate-400 uppercase">24h High</div>
             <div className="text-slate-200 font-semibold">
-              ${selectedInstrument.decimals > 2
-                ? selectedInstrument.high24h.toFixed(selectedInstrument.decimals)
-                : selectedInstrument.high24h.toLocaleString('en-US')}
+              {formatQuote(selectedInstrument.high24h, selectedInstrument.decimals, selectedInstrument.type)}
             </div>
           </div>
           <div>
             <div className="text-[10px] text-slate-400 uppercase">24h Low</div>
             <div className="text-slate-200 font-semibold">
-              ${selectedInstrument.decimals > 2
-                ? selectedInstrument.low24h.toFixed(selectedInstrument.decimals)
-                : selectedInstrument.low24h.toLocaleString('en-US')}
+              {formatQuote(selectedInstrument.low24h, selectedInstrument.decimals, selectedInstrument.type)}
             </div>
           </div>
           <div>
@@ -647,16 +639,16 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-slate-400">{activeDisplayBar?.time || 'Data Pasar'}</span>
           <span>
-            O: <span className="text-white font-semibold">${activeDisplayBar?.open ?? selectedInstrument.price}</span>
+            O: <span className="text-white font-semibold">{formatQuote(activeDisplayBar?.open ?? selectedInstrument.price, selectedInstrument.decimals, selectedInstrument.type)}</span>
           </span>
           <span>
-            H: <span className="text-emerald-400 font-semibold">${activeDisplayBar?.high ?? selectedInstrument.high24h}</span>
+            H: <span className="text-emerald-400 font-semibold">{formatQuote(activeDisplayBar?.high ?? selectedInstrument.high24h, selectedInstrument.decimals, selectedInstrument.type)}</span>
           </span>
           <span>
-            L: <span className="text-rose-400 font-semibold">${activeDisplayBar?.low ?? selectedInstrument.low24h}</span>
+            L: <span className="text-rose-400 font-semibold">{formatQuote(activeDisplayBar?.low ?? selectedInstrument.low24h, selectedInstrument.decimals, selectedInstrument.type)}</span>
           </span>
           <span>
-            C: <span className="text-white font-semibold">${activeDisplayBar?.close ?? selectedInstrument.price}</span>
+            C: <span className="text-white font-semibold">{formatQuote(activeDisplayBar?.close ?? selectedInstrument.price, selectedInstrument.decimals, selectedInstrument.type)}</span>
           </span>
           {showVolume && activeDisplayBar?.volume !== undefined && (
             <span>
@@ -669,13 +661,13 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
           {showEMA20 && (
             <span className="text-sky-400 flex items-center gap-1">
               <span className="w-2 h-0.5 bg-sky-400 inline-block" />
-              EMA20: ${activeDisplayBar?.ema20 ?? '--'}
+              EMA20: {activeDisplayBar?.ema20 != null ? formatQuote(activeDisplayBar.ema20, selectedInstrument.decimals, selectedInstrument.type) : '--'}
             </span>
           )}
           {showEMA50 && (
             <span className="text-emerald-400 flex items-center gap-1">
               <span className="w-2 h-0.5 bg-emerald-400 inline-block" />
-              EMA50: ${activeDisplayBar?.ema50 ?? '--'}
+              EMA50: {activeDisplayBar?.ema50 != null ? formatQuote(activeDisplayBar.ema50, selectedInstrument.decimals, selectedInstrument.type) : '--'}
             </span>
           )}
         </div>
@@ -884,8 +876,8 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                     <div className="text-[10px] text-slate-300 font-sans truncate">{sig.setup}</div>
 
                     <div className="flex items-center justify-between text-[10px] bg-black/40 px-2 py-1 rounded">
-                      <div>Masuk: <span className="text-slate-200 font-semibold">${sig.price}</span></div>
-                      <div>Target TP: <span className="text-emerald-400 font-bold">${sig.targetPrice}</span></div>
+                      <div>Masuk: <span className="text-slate-200 font-semibold">{formatQuote(sig.price, selectedInstrument.decimals, selectedInstrument.type)}</span></div>
+                      <div>Target TP: <span className="text-emerald-400 font-bold">{formatQuote(sig.targetPrice, selectedInstrument.decimals, selectedInstrument.type)}</span></div>
                     </div>
                   </div>
                 );
@@ -932,8 +924,8 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                         </div>
                         <span className="text-slate-300 font-semibold">{sig.timeframe}</span>
                         <span className="col-span-2 text-slate-200 truncate pr-2">{sig.setup}</span>
-                        <span className="text-slate-300">${sig.price}</span>
-                        <span className="text-emerald-400 font-semibold">${sig.targetPrice}</span>
+                        <span className="text-slate-300">{formatQuote(sig.price, selectedInstrument.decimals, selectedInstrument.type)}</span>
+                        <span className="text-emerald-400 font-semibold">{formatQuote(sig.targetPrice, selectedInstrument.decimals, selectedInstrument.type)}</span>
                         <div className="text-right">
                           <button
                             onClick={() => {
@@ -961,11 +953,11 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-[#0B0F1C] px-2.5 py-1.5 rounded-lg border border-slate-800 text-[11px]">
               <div className="flex items-center justify-between sm:flex-col sm:items-start">
                 <span className="text-[10px] text-slate-400">Harga Sekarang</span>
-                <span className="font-bold text-white">${selectedInstrument.price}</span>
+                <span className="font-bold text-white">{formatQuote(selectedInstrument.price, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
               <div className="flex items-center justify-between sm:flex-col sm:items-start">
                 <span className="text-[10px] text-slate-400">Pivot Utama (P)</span>
-                <span className="font-bold text-[#00F0FF]">${technical.pivot}</span>
+                <span className="font-bold text-[#00F0FF]">{formatQuote(technical.pivot, selectedInstrument.decimals, selectedInstrument.type)}</span>
               </div>
               <div className="flex items-center justify-between sm:flex-col sm:items-start">
                 <span className="text-[10px] text-slate-400">Posisi thd Pivot</span>
@@ -995,7 +987,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="flex justify-between items-center text-rose-400 bg-rose-500/5 px-1.5 py-0.5 rounded">
                     <span>Resistance 3 (R3)</span>
                     <div className="text-right flex items-center gap-1.5">
-                      <span className="font-bold">${technical.r3}</span>
+                      <span className="font-bold">{formatQuote(technical.r3, selectedInstrument.decimals, selectedInstrument.type)}</span>
                       <span className="text-[9px] text-slate-400">
                         {((technical.r3 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
@@ -1004,7 +996,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="flex justify-between items-center text-rose-400/90 px-1.5 py-0.5">
                     <span>Resistance 2 (R2)</span>
                     <div className="text-right flex items-center gap-1.5">
-                      <span className="font-semibold">${technical.r2}</span>
+                      <span className="font-semibold">{formatQuote(technical.r2, selectedInstrument.decimals, selectedInstrument.type)}</span>
                       <span className="text-[9px] text-slate-400">
                         {((technical.r2 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
@@ -1013,7 +1005,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="flex justify-between items-center text-rose-400/80 px-1.5 py-0.5">
                     <span>Resistance 1 (R1)</span>
                     <div className="text-right flex items-center gap-1.5">
-                      <span>${technical.r1}</span>
+                      <span>{formatQuote(technical.r1, selectedInstrument.decimals, selectedInstrument.type)}</span>
                       <span className="text-[9px] text-slate-400">
                         {((technical.r1 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
@@ -1033,7 +1025,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   </div>
                   <div className="mt-1.5 py-1.5 px-2 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-center">
                     <span className="text-[10px] text-slate-300 block">Baseline Pivot Point (P)</span>
-                    <span className="text-lg font-black text-[#00F0FF] font-mono leading-tight">${technical.pivot}</span>
+                    <span className="text-lg font-black text-[#00F0FF] font-mono leading-tight">{formatQuote(technical.pivot, selectedInstrument.decimals, selectedInstrument.type)}</span>
                   </div>
                 </div>
                 <div className="text-[9px] text-slate-400 text-center bg-slate-900/60 py-1 px-1.5 rounded mt-1">
@@ -1053,7 +1045,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="flex justify-between items-center text-emerald-400/80 px-1.5 py-0.5">
                     <span>Support 1 (S1)</span>
                     <div className="text-right flex items-center gap-1.5">
-                      <span>${technical.s1}</span>
+                      <span>{formatQuote(technical.s1, selectedInstrument.decimals, selectedInstrument.type)}</span>
                       <span className="text-[9px] text-slate-400">
                         {((technical.s1 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
@@ -1062,7 +1054,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="flex justify-between items-center text-emerald-400/90 px-1.5 py-0.5">
                     <span>Support 2 (S2)</span>
                     <div className="text-right flex items-center gap-1.5">
-                      <span className="font-semibold">${technical.s2}</span>
+                      <span className="font-semibold">{formatQuote(technical.s2, selectedInstrument.decimals, selectedInstrument.type)}</span>
                       <span className="text-[9px] text-slate-400">
                         {((technical.s2 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
@@ -1071,7 +1063,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="flex justify-between items-center text-emerald-400 bg-emerald-500/5 px-1.5 py-0.5 rounded">
                     <span>Support 3 (S3)</span>
                     <div className="text-right flex items-center gap-1.5">
-                      <span className="font-bold">${technical.s3}</span>
+                      <span className="font-bold">{formatQuote(technical.s3, selectedInstrument.decimals, selectedInstrument.type)}</span>
                       <span className="text-[9px] text-slate-400">
                         {((technical.s3 - selectedInstrument.price) / (selectedInstrument.price || 1) * 100).toFixed(1)}%
                       </span>
@@ -1132,7 +1124,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   {ictMaster?.premiumDiscount.currentZone || technical.premiumDiscountZone || 'EQUILIBRIUM'}
                 </span>
                 <span className="text-[9px] text-slate-400">
-                  Eq (50%): ${ictMaster?.premiumDiscount.equilibrium || technical.pivot}
+                  Eq (50%): {formatQuote(ictMaster?.premiumDiscount.equilibrium || technical.pivot, selectedInstrument.decimals, selectedInstrument.type)}
                 </span>
               </div>
 
@@ -1180,7 +1172,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="p-1.5 rounded bg-black/40 border border-slate-800">
                     <span className="text-slate-400 block font-sans text-[9px]">Buyside Liquidity (PDH):</span>
                     <span className="text-emerald-400 font-bold text-xs mt-0.5 block">
-                      ${ictMaster?.irlErl.erlHigh || technical.pdh || selectedInstrument.high24h}
+                      {formatQuote(ictMaster?.irlErl.erlHigh || technical.pdh || selectedInstrument.high24h, selectedInstrument.decimals, selectedInstrument.type)}
                     </span>
                     <span className="text-[9px] text-slate-500">
                       {ictMaster?.dailyBias.pdhSwept ? '✓ Telah Di-Sweep' : 'Menunggu Likuiditas'}
@@ -1190,7 +1182,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="p-1.5 rounded bg-black/40 border border-slate-800">
                     <span className="text-slate-400 block font-sans text-[9px]">Sellside Liquidity (PDL):</span>
                     <span className="text-rose-400 font-bold text-xs mt-0.5 block">
-                      ${ictMaster?.irlErl.erlLow || technical.pdl || selectedInstrument.low24h}
+                      {formatQuote(ictMaster?.irlErl.erlLow || technical.pdl || selectedInstrument.low24h, selectedInstrument.decimals, selectedInstrument.type)}
                     </span>
                     <span className="text-[9px] text-slate-500">
                       {ictMaster?.dailyBias.pdlSwept ? '✓ Telah Di-Sweep' : 'Menunggu Likuiditas'}
@@ -1200,7 +1192,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="p-1.5 rounded bg-black/40 border border-slate-800">
                     <span className="text-slate-400 block font-sans text-[9px]">Target TP Institusional:</span>
                     <span className="text-emerald-300 font-bold text-xs mt-0.5 block">
-                      ${ictMaster?.suggestedTP1 || technical.r1}
+                      {formatQuote(ictMaster?.suggestedTP1 || technical.r1, selectedInstrument.decimals, selectedInstrument.type)}
                     </span>
                     <span className="text-[9px] text-slate-500">Ekspansi Likuiditas ERL</span>
                   </div>
@@ -1208,7 +1200,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                   <div className="p-1.5 rounded bg-black/40 border border-slate-800">
                     <span className="text-slate-400 block font-sans text-[9px]">Stop Loss Aman (Anti-SL):</span>
                     <span className="text-rose-300 font-bold text-xs mt-0.5 block">
-                      ${ictMaster?.suggestedStopLoss || technical.s1}
+                      {formatQuote(ictMaster?.suggestedStopLoss || technical.s1, selectedInstrument.decimals, selectedInstrument.type)}
                     </span>
                     <span className="text-[9px] text-slate-500">Di balik OB / Batas Invalidation</span>
                   </div>
@@ -1218,7 +1210,7 @@ export const LightweightChartPanel: React.FC<MainChartPanelProps> = ({
                 <div className="p-1.5 rounded bg-black/40 border border-slate-800 text-[10px] flex items-center justify-between">
                   <span className="text-slate-400 font-sans">FVG Consequent Encroachment (50% CE):</span>
                   <span className="text-amber-300 font-bold">
-                    ${ictMaster?.irlErl.activeIRL ? ictMaster.irlErl.activeIRL.midpoint : technical.fvgMidpoint || technical.pivot}
+                    {formatQuote(ictMaster?.irlErl.activeIRL ? ictMaster.irlErl.activeIRL.midpoint : technical.fvgMidpoint || technical.pivot, selectedInstrument.decimals, selectedInstrument.type)}
                   </span>
                 </div>
               </div>

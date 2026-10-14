@@ -15,6 +15,8 @@ import {
   Database
 } from 'lucide-react';
 import { Instrument, MarketType } from '../types/market';
+import { formatQuote } from '../lib/format';
+import { fetchLiveTickerFor } from '../services/marketApi';
 
 interface SidebarLeftProps {
   instruments: Instrument[];
@@ -145,14 +147,26 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
           name: targetName,
           type: targetType,
           price: targetPrice,
-          change24h: +(Math.random() * 3.5 - 1.2).toFixed(2),
-          high24h: +(targetPrice * 1.025).toFixed(targetType === 'forex' ? 4 : 2),
-          low24h: +(targetPrice * 0.975).toFixed(targetType === 'forex' ? 4 : 2),
-          volume24h: '$1.8M',
-          sparkline: [targetPrice * 0.98, targetPrice * 0.99, targetPrice * 1.005, targetPrice],
-          decimals: formattedSym.includes('EUR') || (formattedSym.includes('USD') && targetType === 'forex') ? 4 : 2,
+          change24h: 0,
+          high24h: targetPrice,
+          low24h: targetPrice,
+          volume24h: '--',
+          sparkline: [targetPrice, targetPrice],
+          decimals: formattedSym.includes('JPY') ? 2 : targetType === 'forex' || targetType === 'commodities' ? 4 : 2,
           isFavorite: true,
         };
+
+        // Hydrate with the real 24h quote before adding, so the row never shows a fabricated price
+        const live = await fetchLiveTickerFor(newInst);
+        if (live) {
+          Object.assign(newInst, {
+            price: live.price,
+            change24h: live.change24h,
+            high24h: live.high24h,
+            low24h: live.low24h,
+            volume24h: live.volume24h,
+          });
+        }
 
         if (onAddInstrument) {
           onAddInstrument(newInst);
@@ -460,14 +474,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right font-mono">
                     <div className="text-xs font-semibold text-slate-100">
-                      {inst.type === 'forex'
-                        ? inst.price.toFixed(inst.decimals)
-                        : inst.decimals > 2
-                        ? `$${inst.price.toFixed(inst.decimals)}`
-                        : `$${inst.price.toLocaleString('en-US', {
-                            minimumFractionDigits: inst.decimals,
-                            maximumFractionDigits: inst.decimals,
-                          })}`}
+                      {formatQuote(inst.price, inst.decimals, inst.type)}
                     </div>
                     <div
                       className={`inline-flex items-center justify-end text-[10px] px-1 py-0.2 rounded font-medium mt-0.5 ${

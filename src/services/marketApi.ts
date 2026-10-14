@@ -353,6 +353,47 @@ export async function fetchRecentTrades(
   return generateRecentTrades(instrument.price, instrument.decimals);
 }
 
+// Resolve a real 24h ticker for an arbitrary instrument (crypto via Binance, forex/commodity via /api/forex)
+export async function fetchLiveTickerFor(instrument: Instrument): Promise<LiveTicker | null> {
+  const binanceSymbol = resolveBinanceSymbol(instrument);
+  if (binanceSymbol) {
+    try {
+      const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const t: {
+        lastPrice: string;
+        priceChangePercent: string;
+        highPrice: string;
+        lowPrice: string;
+        quoteVolume: string;
+      } = await res.json();
+      return {
+        price: parseFloat(t.lastPrice),
+        change24h: parseFloat(parseFloat(t.priceChangePercent).toFixed(2)),
+        high24h: parseFloat(t.highPrice),
+        low24h: parseFloat(t.lowPrice),
+        volume24h: formatVolume(parseFloat(t.quoteVolume)),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  if (instrument.type === 'forex' || instrument.type === 'commodities') {
+    try {
+      const res = await fetch('/api/forex?action=tickers', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const data: { tickers?: Record<string, LiveTicker> } = await res.json();
+      return data.tickers?.[instrument.id] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 // EMA indicator calculation
 export function calculateEMA(data: ChartCandle[], period: number): Array<{ time: number; value: number }> {
   if (data.length < period) return [];
